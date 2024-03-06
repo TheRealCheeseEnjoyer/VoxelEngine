@@ -16,7 +16,7 @@ GLFWwindow* init() {
 #endif
 
 
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Asteroids2", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Voxel Engine", nullptr, nullptr);
     if (window == nullptr) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
