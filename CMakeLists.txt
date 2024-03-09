@@ -12,6 +12,7 @@ add_executable(VoxelEngine main.cpp
         src/InputManager.h
         src/stb_image.cpp
         src/stb_image.h
+        src/Voxel.h
 )
 
 

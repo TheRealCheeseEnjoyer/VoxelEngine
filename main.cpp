@@ -5,8 +5,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "src/Shader.h"
 #include "src/stb_image.h"
+#include "src/InputManager.h"
+#include <vector>
+#include <array>
 
-
+#define MAXIMUM_REACH 5
 #define SCR_WIDTH 1280
 #define SCR_HEIGHT 720
 
@@ -21,7 +24,7 @@ GLFWwindow* init() {
 #endif
 
 
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Voxel Engine", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Heisencraft", nullptr, nullptr);
     if (window == nullptr) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -35,22 +38,92 @@ GLFWwindow* init() {
     }
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     glEnable(GL_DEPTH_TEST);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     return window;
 }
 
-/*glm::vec3 positions[] {
-        glm::vec3(-1, -1, -1),
-        glm::vec3(-1, -1, 0),
-        glm::vec3(-1, -1, 1),
-        glm::vec3(0, -1, -1),
-        glm::vec3(0, -1, 0),
-        glm::vec3(0, -1, 1),
-        glm::vec3(1, -1, -1),
-        glm::vec3(1, -1, 0),
-        glm::vec3(1, -1, 1),
-        };*/
+std::vector<glm::vec3> positions;
 
-glm::vec3 positions[10000];
+/*
+ *      4 ----- 7
+ * 5 ------ 6   |
+ * |    |   |   |
+ * |    0 --|-- 3
+ * 1 ------ 2
+ */
+
+/*
+ * up, down, left, right, front, back are collections of vertices that describe a certain face.
+ * there are 2^6 = 64 different variations of a cube, depending on how many and which faces have to be drawn
+ * we use a normal integer to store this information about every voxel, like this
+ * 00|100101
+ * the first 2 bits are unused
+ * the rest of the bits, in order from right to left, represent up, down, left, right, front, back,
+ * a 1 bit means that the face should be sent to render, while a 0 means that we should not draw it.
+ * This way each voxel checks if its faces are covered by other solid blocks, and modify the number accordingly.
+ * This number will be used to load in a series of indexes, that an EBO will use to only draw the faces
+ * that we want to.
+ * The EBO table is computed at compile time.
+ * e.g., the example above represents a cube with only the up, left and back faces rendered.
+ * NOTE: This only represents faces not obstructed by near blocks, but they could still be culled away by OpenGL.
+ * ngl this is kinda genius
+ */
+constexpr std::array<unsigned int, 6> up = {
+        4, 5, 6, 4, 6, 7
+};
+
+constexpr std::array<unsigned int, 6> down = {
+        0, 1, 2, 0, 2, 3
+};
+
+constexpr std::array<unsigned int, 6> left = {
+        0, 1, 5, 0, 5, 4
+};
+
+constexpr std::array<unsigned int, 6> right = {
+        3, 2, 6, 3, 6, 7
+};
+
+constexpr std::array<unsigned int, 6> front = {
+        1, 2, 5, 2, 5, 6
+};
+
+constexpr std::array<unsigned int, 6> back = {
+        3, 0, 4, 3, 4, 7
+};
+
+constexpr std::array<std::array<unsigned int, 6>, 6> faces = {
+        up, down, left, right, front, back
+};
+
+constexpr auto calculateIndexes() {
+    std::array<std::vector<std::array<unsigned int, 6>>, 64> out{};
+    std::vector<std::array<unsigned int, 6>> indexes;
+    for (int i = 0; i < 64; i++) {
+        for (int mask = 1, pos = 0; pos < 6; ++pos) {
+            if ((mask & i) == 1) {
+                indexes.push_back(faces[pos]);
+            }
+
+            mask <<= 1;
+        }
+    }
+    return out;
+}
+
+constexpr auto indexes = calculateIndexes();
+
+float verticesEBO[24] = {
+        -.5f, -.5f, -.5f,
+        .5f, -.5f, -.5f,
+        .5f, -.5f, .5f,
+        -.5f, -.5f, .5f,
+
+        -.5f, .5f, -.5f,
+        .5f, .5f, -.5f,
+        .5f, .5f, .5f,
+        -.5f, .5f, .5f,
+};
 
 float vertices[180] = {
         -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
@@ -99,18 +172,32 @@ float vertices[180] = {
 int main() {
     GLFWwindow* window = init();
 
-    int x = 0;
+    positions.reserve(10000);
+
+    InputManager* inputManager = InputManager::getInstance();
+    inputManager->registerKey(GLFW_KEY_W);
+    inputManager->registerKey(GLFW_KEY_A);
+    inputManager->registerKey(GLFW_KEY_S);
+    inputManager->registerKey(GLFW_KEY_D);
+    inputManager->registerKey(GLFW_KEY_ESCAPE);
+    inputManager->registerButton(GLFW_MOUSE_BUTTON_LEFT);
+    inputManager->registerButton(GLFW_MOUSE_BUTTON_RIGHT);
+
     for (int i = -49; i <= 50; i++) {
-        for (int j = -49; j <= 50; j++, x++) {
-            positions[x] = glm::vec3(i, -1, j);
+        for (int j = -49; j <= 50; j++) {
+            positions.emplace_back(i, -1, j);
         }
     }
 
     Shader shader;
-    unsigned int VAO, VBO, texture, texture1;
+    unsigned int VAO, VBO, texture, EBO;
+
 
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
+    glGenBuffers(14, &EBO);
+
+    //std::cout << EBO << std::endl;
 
     glBindVertexArray(VAO);
 
@@ -120,7 +207,7 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) (3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) (3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
     glGenTextures(1, &texture);
@@ -143,73 +230,142 @@ int main() {
     }
     stbi_image_free(data);
 
-    glGenTextures(1,&texture1);
-    glBindTexture(GL_TEXTURE_2D, texture1);
+    auto model = glm::mat4(1),
+            projection = glm::mat4(1);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    float yaw = -90, pitch = 0;
+    glm::vec3 direction;
+    direction.x = cosf(glm::radians(yaw)) * cosf(glm::radians(pitch));
+    direction.y = sinf(glm::radians(pitch));
+    direction.z = sinf(glm::radians(yaw)) * cosf(glm::radians(pitch));
 
-    data = stbi_load("assets/obamium.png", &width, &height, &nrChannels, 0);
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 cameraFront = glm::normalize(direction);
 
-    if (data != nullptr) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    stbi_image_free(data);
-
-    glm::mat4 model      = glm::mat4(1),
-              view       = glm::mat4(1),
-              projection = glm::mat4(1);
-
+    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
     model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(.2f, 1.0f, 0.0f));
-    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
     projection = glm::perspective(glm::radians(45.0f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
     // pass transformation matrices to the shader
     shader.setMat4("model", model);
     shader.setMat4("projection", projection);
     shader.setMat4("view", view);
 
-    std::cout << texture << " " << texture1 << std::endl;
-
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture1);
+    shader.use();
+    shader.setInt("texture1", 0);
 
+    float deltaTime = 0.0f;    // Time between current frame and last frame
+    float lastFrame = 0.0f; // Time of last frame
     while (!glfwWindowShouldClose(window)) {
-        double start = glfwGetTime();
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+        float cameraSpeed = 2.5f * deltaTime;
+        inputManager->updateInput(window);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        if (inputManager->getKeyDown(GLFW_KEY_ESCAPE))
+            glfwSetWindowShouldClose(window, true);
+
+        if (inputManager->getKey(GLFW_KEY_W)) {
+            cameraPos += cameraSpeed * cameraFront;
+        } else if (inputManager->getKey(GLFW_KEY_S)) {
+            cameraPos -= cameraSpeed * cameraFront;
+        }
+
+        if (inputManager->getKey(GLFW_KEY_A)) {
+            cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        } else if (inputManager->getKey(GLFW_KEY_D)) {
+            cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        }
+
+        if (inputManager->getMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT)) {
+            for (int c = 1; c <= MAXIMUM_REACH; c++) {
+                bool found = false;
+                glm::vec3 pointedTo = cameraPos + glm::vec3(c) * cameraFront;
+                pointedTo = glm::vec3(roundf(pointedTo.x), roundf(pointedTo.y), roundf(pointedTo.z));
+
+                for (auto iter = std::begin(positions); iter != positions.end(); iter++) {
+                    if (*iter == pointedTo) {
+                        positions.erase(iter);
+                        found = true;
+                        break;
+                    }
+                }
+                if (found)
+                    break;
+            }
+        }
+
+        if (inputManager->getMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT)) {
+            glm::vec3* block = nullptr;
+            for (int c = 1; c <= MAXIMUM_REACH; c++) {
+                glm::vec3 pointedTo = cameraPos + glm::vec3(c) * cameraFront;
+                pointedTo = glm::vec3(roundf(pointedTo.x), roundf(pointedTo.y), roundf(pointedTo.z));
+
+                for (auto iter = std::begin(positions); iter != positions.end(); iter++) {
+                    if (*iter == pointedTo) {
+                        std::cout << iter->x << " " << iter->z << std::endl;
+                        block = iter.base();
+                        break;
+                    }
+                }
+                if (block != nullptr)
+                    break;
+            }
+
+            if (block != nullptr) {
+                glm::vec3 topRightVertex = *block + 0.5f;
+                glm::vec3 bottomLeftVertex = glm::vec3(block->x - 0.5f, block->y + 0.5f, block->z - 0.5f);
+
+                glm::vec3 dir = cameraPos + cameraFront;
+
+                glm::vec3 topRightVertexDiff = topRightVertex - cameraPos;
+                glm::vec3 bottomLeftVertexDiff = bottomLeftVertex - cameraPos;
+
+                if (glm::dot(glm::cross(bottomLeftVertex, dir), glm::cross(bottomLeftVertex, topRightVertex)) >= 0
+                    && glm::dot(glm::cross(topRightVertex, dir), glm::cross(topRightVertex, bottomLeftVertex)) >= 0) {
+                    std::cout << "top face" << std::endl;
+                }
+
+            }
+        }
 
 
-        for (int i = 0; i < 10000; i++) {
-            glm::mat4 transform = glm::mat4(1);
-            transform = glm::translate(transform, positions[i]);
+        glm::vec2 mouseDelta = inputManager->getMouseDelta();
+        yaw += mouseDelta.x;
+        pitch += mouseDelta.y;
+        if (pitch > 89) {
+            pitch = 89;
+        } else if (pitch < -89) {
+            pitch = -89;
+        }
 
-            transform = glm::rotate(transform, (float) glfwGetTime() * glm::radians(50.0f), glm::vec3(0, 1,0));
+        direction.x = cosf(glm::radians(yaw)) * cosf(glm::radians(pitch));
+        direction.y = sinf(glm::radians(pitch));
+        direction.z = sinf(glm::radians(yaw)) * cosf(glm::radians(pitch));
+        cameraFront = glm::normalize(direction);
+        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
-            shader.use();
+        for (auto position: positions) {
+            auto transform = glm::mat4(1);
+            transform = glm::translate(transform, position);
+
             shader.setMat4("model", transform);
-
-            if (i % 2 == 0) {
-                shader.setInt("texture1", 1);
-            }
-            else {
-                shader.setInt("texture1", 0);
-            }
+            shader.setMat4("view", view);
 
             glBindVertexArray(VAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-
+        inputManager->resetInput();
         glfwSwapBuffers(window);
         glfwPollEvents();
-        std::cout << "Frame time: " << glfwGetTime() - start << std::endl;
+        //std::cout << "Frame time: " << glfwGetTime() - currentFrame << std::endl;
     }
 
     glfwTerminate();

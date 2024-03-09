@@ -11,11 +11,18 @@ struct Status {
     bool wasPressed = false;
 };
 
+struct Mouse {
+    glm::vec2 lastPos = glm::vec2(640, 360);
+    glm::vec2 offset;
+};
+
 class InputManager {
 private:
     static std::unique_ptr<InputManager> instance;
     std::unordered_map<int, Status> keys;
     std::unordered_map<int, Status> buttons;
+
+    Mouse mouse;
 
 public:
     static InputManager* getInstance() {
@@ -82,6 +89,10 @@ public:
         return !buttons[button].isPressed && buttons[button].wasPressed;
     }
 
+    glm::vec2 getMouseDelta() const {
+        return mouse.offset;
+    }
+
     void updateInput(GLFWwindow* window) {
         for (auto& [key, status] : keys) {
             status.isPressed = glfwGetKey(window, key) == GLFW_PRESS;
@@ -90,6 +101,16 @@ public:
         for (auto& [button, status] : buttons) {
             status.isPressed = glfwGetMouseButton(window, button) == GLFW_PRESS;
         }
+
+
+        double xPos, yPos;
+        glfwGetCursorPos(window, &xPos, &yPos);
+        mouse.offset = glm::vec2(xPos - mouse.lastPos.x, mouse.lastPos.y - yPos);
+        mouse.lastPos = glm::vec2(xPos, yPos);
+
+        const float sensitivity = 0.1f;
+        mouse.offset *= sensitivity;
+
     }
 
     void resetInput() {
