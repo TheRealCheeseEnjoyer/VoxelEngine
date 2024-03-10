@@ -38,7 +38,7 @@ GLFWwindow* init() {
     }
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     glEnable(GL_DEPTH_TEST);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     return window;
 }
 
@@ -323,9 +323,6 @@ int main() {
                 glm::vec3 bottomLeftVertex = glm::vec3(block->x - 0.5f, block->y + 0.5f, block->z - 0.5f);
 
                 glm::vec3 dir = cameraPos + cameraFront;
-
-                glm::vec3 topRightVertexDiff = topRightVertex - cameraPos;
-                glm::vec3 bottomLeftVertexDiff = bottomLeftVertex - cameraPos;
 
                 if (glm::dot(glm::cross(bottomLeftVertex, dir), glm::cross(bottomLeftVertex, topRightVertex)) >= 0
                     && glm::dot(glm::cross(topRightVertex, dir), glm::cross(topRightVertex, bottomLeftVertex)) >= 0) {
