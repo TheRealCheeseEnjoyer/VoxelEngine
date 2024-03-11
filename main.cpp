@@ -38,11 +38,11 @@ GLFWwindow* init() {
     }
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     glEnable(GL_DEPTH_TEST);
-    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     return window;
 }
 
-std::vector<glm::vec3> positions;
+std::vector<std::vector<float>> positions;
 
 /*
  *      4 ----- 7
@@ -172,8 +172,6 @@ float vertices[180] = {
 int main() {
     GLFWwindow* window = init();
 
-    positions.reserve(10000);
-
     InputManager* inputManager = InputManager::getInstance();
     inputManager->registerKey(GLFW_KEY_W);
     inputManager->registerKey(GLFW_KEY_A);
@@ -183,32 +181,40 @@ int main() {
     inputManager->registerButton(GLFW_MOUSE_BUTTON_LEFT);
     inputManager->registerButton(GLFW_MOUSE_BUTTON_RIGHT);
 
-    for (int i = -49; i <= 50; i++) {
+    for (int i = -49; i <= 50; ++i) {
         for (int j = -49; j <= 50; j++) {
-            positions.emplace_back(i, -1, j);
+
         }
     }
 
+
     Shader shader;
-    unsigned int VAO, VBO, texture, EBO;
+    std::array<unsigned int, 64> ebos{};
+    unsigned int VAO, VBO, texture;
 
 
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-    glGenBuffers(14, &EBO);
-
-    //std::cout << EBO << std::endl;
+    glGenBuffers(64, ebos.data());
 
     glBindVertexArray(VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    /*glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
 
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) (3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(1);*/
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesEBO), verticesEBO, GL_STATIC_DRAW);
+
+    for (int i = 0; i < 64; i++) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebos[i]);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)indexes[i].size(), indexes[i].data(), GL_STATIC_DRAW);
+    }
 
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -257,10 +263,10 @@ int main() {
     shader.use();
     shader.setInt("texture1", 0);
 
-    float deltaTime = 0.0f;    // Time between current frame and last frame
+    float deltaTime;    // Time between current frame and last frame
     float lastFrame = 0.0f; // Time of last frame
     while (!glfwWindowShouldClose(window)) {
-        float currentFrame = glfwGetTime();
+        auto currentFrame = (float)glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
         float cameraSpeed = 2.5f * deltaTime;
@@ -352,17 +358,19 @@ int main() {
             auto transform = glm::mat4(1);
             transform = glm::translate(transform, position);
 
+            unsigned int ebo;
+
             shader.setMat4("model", transform);
             shader.setMat4("view", view);
 
-            glBindVertexArray(VAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+            glDrawElements(GL_TRIANGLES, )
         }
 
         inputManager->resetInput();
         glfwSwapBuffers(window);
         glfwPollEvents();
-        //std::cout << "Frame time: " << glfwGetTime() - currentFrame << std::endl;
+        std::cout << "Frame time: " << glfwGetTime() - currentFrame << std::endl;
     }
 
     glfwTerminate();
