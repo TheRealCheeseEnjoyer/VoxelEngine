@@ -13,6 +13,8 @@ add_executable(VoxelEngine main.cpp
         src/stb_image.cpp
         src/stb_image.h
         src/Voxel.h
+        src/World.h
+        src/Chunk.h
 )
 
 
