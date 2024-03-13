@@ -21,9 +21,9 @@ public:
     }
 
     void draw(glm::mat4 viewMatrix,glm::mat4 projection) {
-        for (int i = 0; i < chunks.size(); ++i) {
-            for (int j = 0; j < chunks[i].size(); ++j) {
-                chunks[i][j]->draw(viewMatrix, projection);
+        for (auto & chunk : chunks) {
+            for (auto & j : chunk) {
+                j->draw(viewMatrix, projection);
             }
         }
     }
