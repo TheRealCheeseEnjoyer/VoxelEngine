@@ -7,7 +7,15 @@ add_compile_options(-Wall)
 
 add_executable(VoxelEngine main.cpp
         src/glad.c
-        main.cpp)
+        main.cpp
+        src/Shader.h
+        src/InputManager.h
+        src/stb_image.cpp
+        src/stb_image.h
+        src/Voxel.h
+        src/World.h
+        src/Chunk.h
+)
 
 
 target_link_libraries(VoxelEngine -lglfw -lGL -lX11 -lpthread -lXrandr -lXi -ldl)
