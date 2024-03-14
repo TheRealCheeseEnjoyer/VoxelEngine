@@ -63,11 +63,6 @@ int main() {
     inputManager->registerButton(GLFW_MOUSE_BUTTON_LEFT);
     inputManager->registerButton(GLFW_MOUSE_BUTTON_RIGHT);
 
-    auto model = glm::mat4(1),
-            projection = glm::mat4(1);
-
-    projection = glm::perspective(glm::radians(45.0f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
-
     float deltaTime;    // Time between current frame and last frame
     float lastFrame = 0.0f; // Time of last frame
     while (!glfwWindowShouldClose(window)) {
@@ -88,7 +83,7 @@ int main() {
         if (inputManager->getKeyDown(GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, true);
 
-        world.draw(camera.GetViewMatrix(), projection);
+        world.draw(camera.GetMatrices());
 
         glfwPollEvents();
         inputManager->resetInput();

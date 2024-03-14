@@ -12,18 +12,18 @@ public:
     std::vector<std::vector<Chunk*>> chunks;
 
     World() {
-        for (int x = 0; x < 1; ++x) {
+        for (int x = 0; x < 2; ++x) {
             chunks.emplace_back();
-            for (int y = 0; y < 1; ++y) {
+            for (int y = 0; y < 2; ++y) {
                 chunks[x].push_back(new Chunk({x, 0, y}));
             }
         }
     }
 
-    void draw(glm::mat4 viewMatrix,glm::mat4 projection) {
+    void draw(glm::mat4 matrices) {
         for (auto & chunk : chunks) {
             for (auto & j : chunk) {
-                j->draw(viewMatrix, projection);
+                j->draw(matrices);
             }
         }
     }

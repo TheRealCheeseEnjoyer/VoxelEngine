@@ -187,9 +187,9 @@ public:
         return voxels[x][y][z];
     }
 
-    void draw(glm::mat4 viewMatrix, glm::mat4 projection) const {
+    void draw(glm::mat4 matrices) const {
         shader->use();
-        shader->setMat4("stuff", projection * viewMatrix * transform);
+        shader->setMat4("stuff", matrices * transform);
         shader->setInt("TextureUnitId", 0);
         glBindVertexArray(VAO);
 
