@@ -57,9 +57,9 @@ public:
         memset(&voxels, 0, CHUNK_SIZE_X * CHUNK_SIZE_Y * CHUNK_SIZE_Z);
 
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
-            for (int y = 0; y < 3; y++) {
+            for (int y = 0; y < 10; y++) {
                 for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                    voxels[x][y][z] = new Voxel(y == 0 ? TEXTURE_BEDROCK : TEXTURE_DEFAULT);
+                    voxels[x][y][z] = new Voxel(y % 2 == 0 ? TEXTURE_BEDROCK : TEXTURE_DEFAULT);
                 }
             }
         }

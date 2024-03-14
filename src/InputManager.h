@@ -16,6 +16,11 @@ struct Mouse {
     glm::vec2 offset;
 };
 
+enum Axis {
+    HORIZONTAL,
+    VERTICAL
+};
+
 class InputManager {
 private:
     static std::unique_ptr<InputManager> instance;
@@ -45,6 +50,23 @@ public:
             return;
 
         buttons.insert({button, Status()});
+    }
+
+    glm::vec2 getMovementInput() {
+        int x = 0, y = 0;
+        if (getKey(GLFW_KEY_W))
+            y += 1;
+        if (getKey(GLFW_KEY_S))
+            y -= 1;
+        if (getKey(GLFW_KEY_A))
+            x -= 1;
+        if (getKey(GLFW_KEY_D))
+            x += 1;
+
+        if (x == 0 && y == 0)
+            return {x, y};
+
+        return glm::normalize(glm::vec2(x, y));
     }
 
     bool getKeyDown(int key) {

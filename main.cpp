@@ -6,6 +6,7 @@
 #include "src/stb_image.h"
 #include "src/InputManager.h"
 #include "src/World.h"
+#include "src/Camera.h"
 
 #define MAXIMUM_REACH 5
 #define SCR_WIDTH 1280
@@ -51,6 +52,7 @@ int main() {
     glfwSwapInterval(0);
 
     World world;
+    Camera camera({0, 0, -1}, {0, 1, 0}, 90, 0);
 
     InputManager* inputManager = InputManager::getInstance();
     inputManager->registerKey(GLFW_KEY_W);
@@ -64,18 +66,6 @@ int main() {
     auto model = glm::mat4(1),
             projection = glm::mat4(1);
 
-    float yaw = +90, pitch = 0;
-    glm::vec3 direction;
-    direction.x = cosf(glm::radians(yaw)) * cosf(glm::radians(pitch));
-    direction.y = sinf(glm::radians(pitch));
-    direction.z = sinf(glm::radians(yaw)) * cosf(glm::radians(pitch));
-
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, -1.0f);
-    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::vec3 cameraFront = glm::normalize(direction);
-
-    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
     projection = glm::perspective(glm::radians(45.0f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
 
     float deltaTime;    // Time between current frame and last frame
@@ -84,42 +74,21 @@ int main() {
         auto currentFrame = (float) glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        float cameraSpeed = 10 * deltaTime;
+
         inputManager->updateInput(window);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        auto mouseDelta= inputManager->getMouseDelta();
+        camera.ProcessMouseMovement(mouseDelta.x, mouseDelta.y);
+
+        auto direction = inputManager->getMovementInput();
+        camera.ProcessKeyboard(direction, deltaTime);
+
         if (inputManager->getKeyDown(GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, true);
 
-        if (inputManager->getKey(GLFW_KEY_W)) {
-            cameraPos += cameraSpeed * cameraFront;
-        } else if (inputManager->getKey(GLFW_KEY_S)) {
-            cameraPos -= cameraSpeed * cameraFront;
-        }
-
-        if (inputManager->getKey(GLFW_KEY_A)) {
-            cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-        } else if (inputManager->getKey(GLFW_KEY_D)) {
-            cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-        }
-
-        glm::vec2 mouseDelta = inputManager->getMouseDelta();
-        yaw += mouseDelta.x;
-        pitch += mouseDelta.y;
-        if (pitch > 89) {
-            pitch = 89;
-        } else if (pitch < -89) {
-            pitch = -89;
-        }
-
-        direction.x = cosf(glm::radians(yaw)) * cosf(glm::radians(pitch));
-        direction.y = sinf(glm::radians(pitch));
-        direction.z = sinf(glm::radians(yaw)) * cosf(glm::radians(pitch));
-        cameraFront = glm::normalize(direction);
-        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
-        world.draw(view, projection);
+        world.draw(camera.GetViewMatrix(), projection);
 
         glfwPollEvents();
         inputManager->resetInput();

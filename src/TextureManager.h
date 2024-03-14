@@ -12,8 +12,6 @@ enum TextureType {
     TEXTURE_BEDROCK
 };
 
-
-
 class TextureManager {
 private:
     inline static std::unordered_map<TextureType, unsigned int> textures;
