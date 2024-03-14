@@ -47,6 +47,7 @@ GLFWwindow* init() {
 
 int main() {
     GLFWwindow* window = init();
+
     glfwSwapInterval(0);
 
     World world;
@@ -63,7 +64,7 @@ int main() {
     auto model = glm::mat4(1),
             projection = glm::mat4(1);
 
-    float yaw = -90, pitch = 0;
+    float yaw = +90, pitch = 0;
     glm::vec3 direction;
     direction.x = cosf(glm::radians(yaw)) * cosf(glm::radians(pitch));
     direction.y = sinf(glm::radians(pitch));

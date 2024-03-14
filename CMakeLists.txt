@@ -15,6 +15,7 @@ add_executable(VoxelEngine main.cpp
         src/Voxel.h
         src/World.h
         src/Chunk.h
+        src/TextureManager.h
 )
 
 

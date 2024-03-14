@@ -4,11 +4,13 @@
 #include <glm/vec3.hpp>
 #include <glad/glad.h>
 #include "Shader.h"
+#include "TextureManager.h"
 
 struct Voxel {
 public:
     inline static Shader* shader = nullptr;
-    Voxel()  {
+    TextureType type;
+    explicit Voxel(TextureType type) : type(type)  {
         if (shader == nullptr) {
             shader = new Shader();
         }
