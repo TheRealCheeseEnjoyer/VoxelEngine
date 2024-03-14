@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <memory>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 struct Status {
     bool isPressed = false;
@@ -14,11 +15,6 @@ struct Status {
 struct Mouse {
     glm::vec2 lastPos = glm::vec2(640, 360);
     glm::vec2 offset;
-};
-
-enum Axis {
-    HORIZONTAL,
-    VERTICAL
 };
 
 class InputManager {

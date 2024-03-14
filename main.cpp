@@ -1,8 +1,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include "src/stb_image.h"
 #include "src/InputManager.h"
 #include "src/World.h"
@@ -25,14 +23,15 @@ GLFWwindow* init() {
 
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Heisencraft", nullptr, nullptr);
     if (window == nullptr) {
-        std::cout << "Failed to create GLFW window" << std::endl;
+        std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         exit(1);
     }
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(0);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
-        std::cout << "Failed to initialize GLAD" << std::endl;
+        std::cerr << "Failed to initialize GLAD" << std::endl;
         exit(1);
     }
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
@@ -42,16 +41,13 @@ GLFWwindow* init() {
     glFrontFace(GL_CCW);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-
     return window;
 }
 
 int main() {
     GLFWwindow* window = init();
 
-    glfwSwapInterval(0);
-
-    World world;
+    World::init();
     Camera camera({0, 0, -1}, {0, 1, 0}, 90, 0);
 
     InputManager* inputManager = InputManager::getInstance();
@@ -83,7 +79,7 @@ int main() {
         if (inputManager->getKeyDown(GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, true);
 
-        world.draw(camera.GetMatrices());
+        World::draw(camera.GetMatrices());
 
         glfwPollEvents();
         inputManager->resetInput();
