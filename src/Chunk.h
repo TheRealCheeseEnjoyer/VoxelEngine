@@ -226,7 +226,6 @@ public:
         shader->setInt("TextureUnitId", 0);
         glBindVertexArray(VAO);
 
-        //TODO: select different textures to render using texture atlas (spritesheet)
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, TextureManager::getTextureId(TEXTURE_DEFAULT));
         glDrawArrays(GL_TRIANGLES, 0, (int) mesh.size());

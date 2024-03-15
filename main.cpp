@@ -6,7 +6,6 @@
 #include "src/World.h"
 #include "src/Camera.h"
 
-#define MAXIMUM_REACH 5
 #define SCR_WIDTH 1280
 #define SCR_HEIGHT 720
 
@@ -19,7 +18,6 @@ GLFWwindow* init() {
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-
 
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Heisencraft", nullptr, nullptr);
     if (window == nullptr) {
@@ -48,7 +46,7 @@ int main() {
     GLFWwindow* window = init();
 
     World::init();
-    Camera camera({0, 0, -1}, {0, 1, 0}, 90, 0);
+    Camera camera({0, 10, 0}, {0, 1, 0}, 90, 0);
 
     InputManager* inputManager = InputManager::getInstance();
     inputManager->registerKey(GLFW_KEY_W);
@@ -62,13 +60,12 @@ int main() {
     float deltaTime;    // Time between current frame and last frame
     float lastFrame = 0.0f; // Time of last frame
     while (!glfwWindowShouldClose(window)) {
-        auto currentFrame = (float) glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
-
         inputManager->updateInput(window);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        auto currentFrame = (float) glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
 
         auto mouseDelta= inputManager->getMouseDelta();
         camera.ProcessMouseMovement(mouseDelta.x, mouseDelta.y);
@@ -79,7 +76,7 @@ int main() {
         if (inputManager->getKeyDown(GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, true);
 
-        World::draw(camera.GetMatrices());
+        World::draw(camera);
 
         glfwPollEvents();
         inputManager->resetInput();

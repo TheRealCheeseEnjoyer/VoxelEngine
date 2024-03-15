@@ -63,7 +63,7 @@ public:
     }
 
     glm::mat4 GetProjectionMatrix() {
-        return glm::perspective(Fov, (float)ScrWidth / (float)ScrHeight, .1f, 100.f);
+        return glm::perspective(Fov, (float)ScrWidth / (float)ScrHeight, .1f, 1000.f);
     }
 
     glm::mat4 GetMatrices() {
