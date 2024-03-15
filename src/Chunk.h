@@ -23,7 +23,7 @@ struct Vertex {
 
 class Chunk {
 private:
-    int mod(int a, int b) {
+    static int mod(int a, int b) {
         return (a%b+b)%b;
     }
 
@@ -160,7 +160,7 @@ public:
     std::array<std::array<std::array<Voxel*, CHUNK_SIZE_Z>, CHUNK_SIZE_Y>, CHUNK_SIZE_X> voxels{};
     std::vector<Vertex> mesh;
 
-    explicit Chunk(glm::vec3 position) : position(position.x * CHUNK_SIZE_X, position.y * CHUNK_SIZE_Y,position.z * CHUNK_SIZE_Z) {
+    explicit Chunk(glm::vec2 position) : position(position.x * CHUNK_SIZE_X, 0, position.y * CHUNK_SIZE_Z) {
         transform = glm::translate(transform, this->position);
         memset(&voxels, 0, CHUNK_SIZE_X * CHUNK_SIZE_Y * CHUNK_SIZE_Z);
 
@@ -220,7 +220,7 @@ public:
         return nullptr;
     }
 
-    void draw(glm::mat4 matrices) const {
+    void draw(const glm::mat4& matrices) const {
         shader->use();
         shader->setMat4("stuff", matrices * transform);
         shader->setInt("TextureUnitId", 0);

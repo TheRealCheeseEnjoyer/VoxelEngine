@@ -21,7 +21,7 @@ public:
         for (int x = 0; x < WORLD_SIZE_X; ++x) {
             chunks.emplace_back();
             for (int z = 0; z < WORLD_SIZE_Z; ++z) {
-                chunks[x].push_back(new Chunk({x, 0, z}));
+                chunks[x].push_back(new Chunk({x, z}));
             }
         }
 
@@ -51,9 +51,15 @@ public:
         glm::vec<2, int, glm::defaultp> cameraChunkCoords = {camera.Position.x / CHUNK_SIZE_X, camera.Position.z / CHUNK_SIZE_Z};
         for (int x = std::max(0, cameraChunkCoords.x - MAX_RENDER_DISTANCE); x < std::min(WORLD_SIZE_X, cameraChunkCoords.x + MAX_RENDER_DISTANCE); x++) {
             for (int z = std::max(0, cameraChunkCoords.y - MAX_RENDER_DISTANCE); z < std::min(WORLD_SIZE_Z, cameraChunkCoords.y + MAX_RENDER_DISTANCE); ++z) {
-                chunks[x][z]->draw(camera.GetMatrices());
+                if (isInsideFrustum(camera, x, z))
+                    chunks[x][z]->draw(camera.GetMatrices());
             }
         }
+    }
+
+    // TODO: frustum culling
+    static bool isInsideFrustum(const Camera& camera, int x, int z) {
+        return true;
     }
 };
 
