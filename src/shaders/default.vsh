@@ -8,5 +8,5 @@ uniform mat4 stuff;
 
 void main() {
     gl_Position = stuff * vec4(aPos, 1);
-    TexCoord = vec2(aTexCoord.x, aTexCoord.y);
+    TexCoord = aTexCoord;
 }

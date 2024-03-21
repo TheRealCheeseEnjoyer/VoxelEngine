@@ -3,6 +3,8 @@
 
 #include <cfloat>
 #include <vector>
+#include <thread>
+#include <queue>
 #include "Voxel.h"
 #include "Chunk.h"
 #include "Camera.h"
@@ -10,18 +12,25 @@
 #define WORLD_SIZE_X 100
 #define WORLD_SIZE_Z 100
 #define MAX_RENDER_DISTANCE 12
+#define SPAWN_CHUNK_RANGE (MAX_RENDER_DISTANCE * 2)
 
 class World {
 public:
-    inline static std::vector<std::vector<Chunk*>> chunks;
+    inline static Chunk* chunks[WORLD_SIZE_X][WORLD_SIZE_Z];
+
+    inline static std::queue<std::thread> threads;
+    inline static Shader* shader;
 
     World() = delete;
 
-    static void init() {
+    static void init(const Camera& camera) {
+        memset(chunks, 0, WORLD_SIZE_X * WORLD_SIZE_Z);
+        shader = new Shader();
+        auto start = glfwGetTime();
+
         for (int x = 0; x < WORLD_SIZE_X; ++x) {
-            chunks.emplace_back();
             for (int z = 0; z < WORLD_SIZE_Z; ++z) {
-                chunks[x].push_back(new Chunk({x, z}));
+                chunks[x][z] = new Chunk({x, z}, shader);
             }
         }
 
@@ -35,6 +44,7 @@ public:
                 chunks[x][z]->init(north, south, east, west);
             }
         }
+        std::cout << glfwGetTime() - start << std::endl;
     }
 
     static Chunk* getChunk(int x, int z) {
@@ -51,7 +61,8 @@ public:
         glm::vec<2, int, glm::defaultp> cameraChunkCoords = {camera.Position.x / CHUNK_SIZE_X, camera.Position.z / CHUNK_SIZE_Z};
         for (int x = std::max(0, cameraChunkCoords.x - MAX_RENDER_DISTANCE); x < std::min(WORLD_SIZE_X, cameraChunkCoords.x + MAX_RENDER_DISTANCE); x++) {
             for (int z = std::max(0, cameraChunkCoords.y - MAX_RENDER_DISTANCE); z < std::min(WORLD_SIZE_Z, cameraChunkCoords.y + MAX_RENDER_DISTANCE); ++z) {
-                if (isInsideFrustum(camera, x, z))
+                glm::vec<2, int, glm::defaultp> chunkCoords(x, z);
+                if (glm::length((glm::vec2)(cameraChunkCoords - chunkCoords)) <= MAX_RENDER_DISTANCE && isInsideFrustum(camera, x, z))
                     chunks[x][z]->draw(camera.GetMatrices());
             }
         }

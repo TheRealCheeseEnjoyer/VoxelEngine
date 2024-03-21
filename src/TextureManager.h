@@ -9,7 +9,7 @@
 
 enum TextureType {
     TEXTURE_DEFAULT,
-    TEXTURE_BEDROCK
+    TEXTURE_BEDROCK,
 };
 
 class TextureManager {
@@ -28,31 +28,23 @@ private:
 
         stbi_set_flip_vertically_on_load(true);
         int width, height, nrChannels;
-        unsigned char* data = stbi_load("assets/spritesheet.png", &width, &height, &nrChannels, 0);
+        unsigned char* data;
+        switch (type) {
+            case TEXTURE_DEFAULT:
+                data = stbi_load("assets/image.png", &width, &height, &nrChannels, 0);
+                break;
+            case TEXTURE_BEDROCK:
+                data = stbi_load("assets/obamium.png", &width, &height, &nrChannels, 0);
+                break;
+        }
+
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
         stbi_image_free(data);
 
         textures.insert({type, texture});
-        switch (type) {
-            case TEXTURE_DEFAULT:
-                offsetsAndLengths.insert({type, {0.f, 273/785.f}});
-                break;
-            case TEXTURE_BEDROCK:
-                offsetsAndLengths.insert({type, {273.f/785.f, 1}});
-                break;
-        }
-
     }
 public:
-    static std::tuple<float, float> getOffset(TextureType type) {
-        if (!offsetsAndLengths.contains(type)) {
-            generateTexture(type);
-        }
-
-        return offsetsAndLengths[type];
-    }
-
     static unsigned int getTextureId(TextureType type) {
         if (!textures.contains(type))
             generateTexture(type);

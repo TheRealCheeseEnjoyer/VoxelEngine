@@ -8,13 +8,8 @@
 
 struct Voxel {
 public:
-    inline static Shader* shader = nullptr;
     TextureType type;
-    explicit Voxel(TextureType type) : type(type)  {
-        if (shader == nullptr) {
-            shader = new Shader();
-        }
-    }
+    explicit Voxel(TextureType type) : type(type) {}
 };
 
 #endif

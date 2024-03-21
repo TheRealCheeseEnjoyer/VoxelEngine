@@ -5,9 +5,43 @@
 #include "src/InputManager.h"
 #include "src/World.h"
 #include "src/Camera.h"
+#include <cstring>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cctype>
 
 #define SCR_WIDTH 1280
 #define SCR_HEIGHT 720
+
+bool debuggerIsAttached() {
+    char buf[4096];
+
+    const int status_fd = open("/proc/self/status", O_RDONLY);
+    if (status_fd == -1)
+        return false;
+
+    const ssize_t num_read = read(status_fd, buf, sizeof(buf) - 1);
+    close(status_fd);
+
+    if (num_read <= 0)
+        return false;
+
+    buf[num_read] = '\0';
+    constexpr char tracerPidString[] = "TracerPid:";
+    const auto tracer_pid_ptr = strstr(buf, tracerPidString);
+    if (!tracer_pid_ptr)
+        return false;
+
+    for (const char* characterPtr = tracer_pid_ptr + sizeof(tracerPidString) - 1;
+         characterPtr <= buf + num_read; ++characterPtr) {
+        if (isspace(*characterPtr))
+            continue;
+        else
+            return isdigit(*characterPtr) != 0 && *characterPtr != '0';
+    }
+
+    return false;
+}
 
 GLFWwindow* init() {
     glfwInit();
@@ -37,7 +71,8 @@ GLFWwindow* init() {
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    if (!debuggerIsAttached())
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     return window;
 }
@@ -45,8 +80,8 @@ GLFWwindow* init() {
 int main() {
     GLFWwindow* window = init();
 
-    World::init();
     Camera camera({0, 10, 0}, {0, 1, 0}, 90, 0);
+    World::init(camera);
 
     InputManager* inputManager = InputManager::getInstance();
     inputManager->registerKey(GLFW_KEY_W);
@@ -67,7 +102,7 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        auto mouseDelta= inputManager->getMouseDelta();
+        auto mouseDelta = inputManager->getMouseDelta();
         camera.ProcessMouseMovement(mouseDelta.x, mouseDelta.y);
 
         auto direction = inputManager->getMovementInput();
