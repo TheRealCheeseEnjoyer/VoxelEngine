@@ -83,38 +83,38 @@ int main() {
     Camera camera({0, 10, 0}, {0, 1, 0}, 90, 0);
     World::init(camera);
 
-    InputManager* inputManager = InputManager::getInstance();
-    inputManager->registerKey(GLFW_KEY_W);
-    inputManager->registerKey(GLFW_KEY_A);
-    inputManager->registerKey(GLFW_KEY_S);
-    inputManager->registerKey(GLFW_KEY_D);
-    inputManager->registerKey(GLFW_KEY_ESCAPE);
-    inputManager->registerButton(GLFW_MOUSE_BUTTON_LEFT);
-    inputManager->registerButton(GLFW_MOUSE_BUTTON_RIGHT);
+
+    InputManager::registerKey(GLFW_KEY_W);
+    InputManager::registerKey(GLFW_KEY_A);
+    InputManager::registerKey(GLFW_KEY_S);
+    InputManager::registerKey(GLFW_KEY_D);
+    InputManager::registerKey(GLFW_KEY_ESCAPE);
+    InputManager::registerButton(GLFW_MOUSE_BUTTON_LEFT);
+    InputManager::registerButton(GLFW_MOUSE_BUTTON_RIGHT);
 
     float deltaTime;    // Time between current frame and last frame
     float lastFrame = 0.0f; // Time of last frame
     while (!glfwWindowShouldClose(window)) {
-        inputManager->updateInput(window);
+        InputManager::updateInput(window);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         auto currentFrame = (float) glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        auto mouseDelta = inputManager->getMouseDelta();
+        auto mouseDelta = InputManager::getMouseDelta();
         camera.ProcessMouseMovement(mouseDelta.x, mouseDelta.y);
 
-        auto direction = inputManager->getMovementInput();
+        auto direction = InputManager::getMovementInput();
         camera.ProcessKeyboard(direction, deltaTime);
 
-        if (inputManager->getKeyDown(GLFW_KEY_ESCAPE))
+        if (InputManager::getKeyDown(GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, true);
 
         World::draw(camera);
 
         glfwPollEvents();
-        inputManager->resetInput();
+        InputManager::resetInput();
         glfwSwapBuffers(window);
         glFinish();
         std::cout << "FPS: " << 1 / (glfwGetTime() - currentFrame) << std::endl;
