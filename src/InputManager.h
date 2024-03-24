@@ -19,36 +19,28 @@ struct Mouse {
 
 class InputManager {
 private:
-    static std::unique_ptr<InputManager> instance;
-    std::unordered_map<int, Status> keys;
-    std::unordered_map<int, Status> buttons;
+    inline static std::unordered_map<int, Status> keys;
+    inline static std::unordered_map<int, Status> buttons;
 
-    Mouse mouse;
+    inline static Mouse mouse;
 
 public:
-    static InputManager* getInstance() {
-        if (instance == nullptr) {
-            instance = std::make_unique<InputManager>();
-        }
-
-        return instance.get();
-    }
-
-    void registerKey(int key) {
+    InputManager() = delete;
+    static void registerKey(int key) {
         if (keys.contains(key))
             return;
 
         keys.insert({key, Status()});
     };
 
-    void registerButton(int button) {
+    static void registerButton(int button) {
         if (buttons.contains(button))
             return;
 
         buttons.insert({button, Status()});
     }
 
-    glm::vec2 getMovementInput() {
+    static glm::vec2 getMovementInput() {
         int x = 0, y = 0;
         if (getKey(GLFW_KEY_W))
             y += 1;
@@ -65,53 +57,58 @@ public:
         return glm::normalize(glm::vec2(x, y));
     }
 
-    bool getKeyDown(int key) {
+    static bool getKeyDown(int key) {
         if (!keys.contains(key))
             return false;
 
         return keys[key].isPressed && !keys[key].wasPressed;
     }
 
-    bool getKey(int key) {
+    static bool getKey(int key) {
         if (!keys.contains(key))
             return false;
 
         return keys[key].isPressed;
     }
 
-    bool getKeyUp(int key) {
+    static bool getKeyUp(int key) {
         if (!keys.contains(key))
             return false;
 
         return !keys[key].isPressed && keys[key].wasPressed;
     }
 
-    bool getMouseButtonDown(int button) {
-        if (!buttons.contains(button))
+    static bool getMouseButtonDown(int button) {
+        if (!buttons.contains(button)) {
             return false;
+        }
 
-        return buttons[button].isPressed && !buttons[button].wasPressed;
+        if (buttons[button].isPressed) {
+            std::cout << "sosig" << std::endl;
+        }
+
+        return buttons[button].isPressed && !(buttons[button].wasPressed);
     }
 
-    bool getMouseButton(int button) {
+    static bool getMouseButton(int button) {
         if (!buttons.contains(button))
             return false;
 
         return buttons[button].isPressed;
     }
 
-    bool getMouseButtonUp(int button) {
+    static bool getMouseButtonUp(int button) {
         if (!buttons.contains(button))
             return false;
 
         return !buttons[button].isPressed && buttons[button].wasPressed;
     }
 
-    glm::vec2 getMouseDelta() const {
+    static glm::vec2 getMouseDelta() {
         return mouse.offset;
     }
 
-    void updateInput(GLFWwindow* window) {
+    static void updateInput(GLFWwindow* window) {
         for (auto& [key, status] : keys) {
             status.isPressed = glfwGetKey(window, key) == GLFW_PRESS;
         }
@@ -131,7 +128,7 @@ public:
 
     }
 
-    void resetInput() {
+    static void resetInput() {
         for (auto& [key, status] : keys) {
             status.wasPressed = status.isPressed;
             status.isPressed = false;
@@ -143,7 +140,5 @@ public:
         }
     }
 };
-
-std::unique_ptr<InputManager> InputManager::instance = nullptr;
 
 #endif
