@@ -20,7 +20,16 @@
 struct Vertex {
     glm::vec3 position;
     glm::vec2 texCoords;
-    Vertex(glm::vec3 position, glm::vec2 texCoords = {0, 0}) : position(position), texCoords(texCoords) {}
+    Vertex(glm::vec3 position, glm::vec2 texCoords) : position(position), texCoords(texCoords) {}
+};
+
+enum FaceOrientation {
+    FACE_TOP    = 0b1,
+    FACE_BOTTOM = 0b10,
+    FACE_LEFT   = 0b100,
+    FACE_RIGHT  = 0b1000,
+    FACE_FRONT  = 0b10000,
+    FACE_BACK   = 0b100000
 };
 
 class Chunk {
@@ -34,24 +43,99 @@ private:
         return (a % b + b) % b;
     }
 
-    void getVolumeCoordinates(int &startX, int &startY, int &startZ, auto &meshTrackerTable, int& length, int& width, int& height) {
-        length = 0, width = 0, height = 0;
-        TextureType currentType = getVoxel(startX, startY, startZ)->type;
+    void getSurfaceCoordinates(glm::vec<3, int, glm::defaultp> start, glm::vec2& dimensions, FaceOrientation orientation, auto& meshTrackerTable) {
+        int length = 0, width = 0;
+        int startLengthDimension, startWidthDimension;
+        int lengthLimit, widthLimit;
+        int* lengthDimension;
+        int* widthDimension;
+        int lengthDiff, widthDiff;
+        int neighborDirection;
+        glm::vec<3, int*, glm::defaultp> neighbor{};
+        TextureType currentType = getVoxel(start.x, start.y, start.z)->type;
 
-        //Ugly ahh algo but should be fine
-        //maybe I'll fix it later
 
-        for (int x = startX + 1; x < CHUNK_SIZE_X; ++x) {
-            if (getVoxel(x, startY, startZ) == nullptr || getVoxel(x, startY, startZ)->type != currentType || meshTrackerTable[x][startY][startZ])
+        switch (orientation) {
+            case FACE_TOP:
+                lengthDimension = &start.x;
+                widthDimension = &start.z;
+                startLengthDimension = start.x;
+                startWidthDimension = start.z;
+                lengthLimit = CHUNK_SIZE_X;
+                widthLimit = CHUNK_SIZE_Z;
+                neighborDirection = start.y + 1;
+                neighbor = {lengthDimension, &neighborDirection, widthDimension};
                 break;
+            case FACE_BOTTOM:
+                lengthDimension = &start.x;
+                widthDimension = &start.z;
+                startLengthDimension = start.x;
+                startWidthDimension = start.z;
+                lengthLimit = CHUNK_SIZE_X;
+                widthLimit = CHUNK_SIZE_Z;
+                neighborDirection = start.y - 1;
+                neighbor = {lengthDimension, &neighborDirection, widthDimension};
+                break;
+            case FACE_LEFT:
+                lengthDimension = &start.z;
+                widthDimension = &start.y;
+                startLengthDimension = start.z;
+                startWidthDimension = start.y;
+                lengthLimit = CHUNK_SIZE_Z;
+                widthLimit = CHUNK_SIZE_Y;
+                neighborDirection = start.x + 1;
+                neighbor = {&neighborDirection, widthDimension, lengthDimension};
+                break;
+            case FACE_RIGHT:
+                lengthDimension = &start.z;
+                widthDimension = &start.y;
+                startLengthDimension = start.z;
+                startWidthDimension = start.y;
+                lengthLimit = CHUNK_SIZE_Z;
+                widthLimit = CHUNK_SIZE_Y;
+                neighborDirection = start.x - 1;
+                neighbor = {&neighborDirection, widthDimension, lengthDimension};
+                break;
+            case FACE_FRONT:
+                lengthDimension = &start.x;
+                widthDimension = &start.y;
+                startLengthDimension = start.x;
+                startWidthDimension = start.y;
+                lengthLimit = CHUNK_SIZE_X;
+                widthLimit = CHUNK_SIZE_Y;
+                neighborDirection = start.z + 1;
+                neighbor = {lengthDimension, widthDimension, &neighborDirection};
+                break;
+            case FACE_BACK:
+                lengthDimension = &start.x;
+                widthDimension = &start.y;
+                startLengthDimension = start.x;
+                startWidthDimension = start.y;
+                lengthLimit = CHUNK_SIZE_X;
+                widthLimit = CHUNK_SIZE_Y;
+                neighborDirection = start.z - 1;
+                neighbor = {lengthDimension, widthDimension, &neighborDirection};
+                break;
+        }
+
+        for (*lengthDimension += 1; *lengthDimension < lengthLimit; (*lengthDimension)++) {
+            if ((meshTrackerTable[start.x][start.y][start.z] & orientation) == orientation ||
+                getVoxel(start.x, start.y, start.z) == nullptr ||
+                getVoxel(start.x, start.y, start.z)->type != currentType ||
+                getVoxel(*neighbor.x, *neighbor.y, *neighbor.z) != nullptr) {
+                break;
+            }
 
             length++;
         }
 
-        for (int y = startY + 1; y < CHUNK_SIZE_Y; ++y) {
+        for (*widthDimension += 1; *widthDimension < widthLimit; (*widthDimension)++) {
             bool isWholeLineOk = true;
-            for (int x = startX; x <= startX + length; ++x) {
-                if (getVoxel(x, y, startZ) == nullptr || getVoxel(x, y, startZ)->type != currentType || meshTrackerTable[x][y][startZ]) {
+            for (*lengthDimension = startLengthDimension; *lengthDimension <= startLengthDimension + length; (*lengthDimension)++) {
+                if ((meshTrackerTable[start.x][start.y][start.z] & orientation) == orientation ||
+                    getVoxel(start.x, start.y, start.z) == nullptr ||
+                    getVoxel(start.x, start.y, start.z)->type != currentType ||
+                    getVoxel(*neighbor.x, *neighbor.y, *neighbor.z) != nullptr) {
                     isWholeLineOk = false;
                     break;
                 }
@@ -60,116 +144,90 @@ private:
             if (!isWholeLineOk)
                 break;
 
-            height++;
-        }
-
-        for (int z = startZ + 1; z < CHUNK_SIZE_Z; ++z) {
-            bool isWholeAreOk = true;
-            for (int y = startY; y <= startY + height; ++y) {
-                for (int x = startX; x <= startX + length; ++x) {
-                    if (getVoxel(x, y, z) == nullptr || getVoxel(x, y, z)->type != currentType || meshTrackerTable[x][y][z]) {
-                        isWholeAreOk = false;
-                        break;
-                    }
-                }
-
-                if (!isWholeAreOk)
-                    break;
-            }
-
-            if (!isWholeAreOk)
-                break;
-
             width++;
         }
 
-        for (int z = startZ; z <= startZ + width; ++z) {
-            for (int y = startY; y <= startY + height; ++y) {
-                for (int x = startX; x <= startX + length; ++x) {
-                    meshTrackerTable[x][y][z] = true;
-                }
+        for (*widthDimension = startWidthDimension; *widthDimension <= startWidthDimension + width; (*widthDimension)++) {
+            for (*lengthDimension = startLengthDimension; *lengthDimension <= startLengthDimension + length; (*lengthDimension)++) {
+                meshTrackerTable[start.x][start.y][start.z] ^= orientation;
             }
         }
+
+        dimensions = {length, width};
     }
 
     void createMesh() {
-        glm::vec3 topLeftFront, bottomRightBack;
-
         // Tracks which voxels have already been meshed
-        std::array<std::array<std::array<bool, CHUNK_SIZE_Z>, CHUNK_SIZE_Y>, CHUNK_SIZE_X> meshTrackerTable{};
+        std::array<std::array<std::array<char, CHUNK_SIZE_Z>, CHUNK_SIZE_Y>, CHUNK_SIZE_X> meshTrackerTable{};
         memset(&meshTrackerTable, 0, CHUNK_SIZE_Z * CHUNK_SIZE_Y * CHUNK_SIZE_X);
 
         for (int z = 0; z < CHUNK_SIZE_Z; ++z) {
             for (int y = 0; y < CHUNK_SIZE_Y; ++y) {
                 for (int x = 0; x < CHUNK_SIZE_X; ++x) {
                     Voxel* voxel = getVoxel(x, y, z);
-                    if (voxel == nullptr || meshTrackerTable[x][y][z])
+                    if (voxel == nullptr)
                         continue;
-
-                    int length, width, height;
-
-                    getVolumeCoordinates(x, y, z, meshTrackerTable, length, width, height);
-                    bottomRightBack = {x - .5f, y - .5f, z - .5f};
-                    topLeftFront = {x + length + .5f, y + height + .5f, z + width + .5f};
-
-                    length++;
-                    height++;
-                    width++;
 
                     if (!mesh.contains(voxel->type))
                         mesh.insert({voxel->type, {}});
 
                     auto &vertices = mesh[voxel->type];
 
-                    // Left Face
-                    vertices.emplace_back(topLeftFront, glm::vec2(0, height));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, bottomRightBack.y, topLeftFront.z), glm::vec2(0, 0));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, bottomRightBack.y, bottomRightBack.z), glm::vec2(width, 0));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, bottomRightBack.y, bottomRightBack.z), glm::vec2(width, 0));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, topLeftFront.y, bottomRightBack.z), glm::vec2(width, height));
-                    vertices.emplace_back(topLeftFront, glm::vec2(0, height));
-
-                    // Right Face
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, topLeftFront.y, bottomRightBack.z), glm::vec2(0, height));
-                    vertices.emplace_back(bottomRightBack, glm::vec2(0, 0));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, bottomRightBack.y, topLeftFront.z), glm::vec2(width, 0));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, bottomRightBack.y, topLeftFront.z), glm::vec2(width, 0));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, topLeftFront.y, topLeftFront.z), glm::vec2(width, height));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, topLeftFront.y, bottomRightBack.z), glm::vec2(0, height));
-
-                    // Top Face
-                    vertices.emplace_back(topLeftFront, glm::vec2(0, width));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, topLeftFront.y, bottomRightBack.z), glm::vec2(0, 0));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, topLeftFront.y, bottomRightBack.z), glm::vec2(length, 0));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, topLeftFront.y, bottomRightBack.z), glm::vec2(length, 0));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, topLeftFront.y, topLeftFront.z), glm::vec2(length, width));
-                    vertices.emplace_back(topLeftFront, glm::vec2(0, width));
-
-                    // Bottom Face
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, bottomRightBack.y, topLeftFront.z), glm::vec2(0, width));
-                    vertices.emplace_back(bottomRightBack, glm::vec2(0, 0));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, bottomRightBack.y, bottomRightBack.z), glm::vec2(length, 0));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, bottomRightBack.y, bottomRightBack.z), glm::vec2(length, 0));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, bottomRightBack.y, topLeftFront.z), glm::vec2(length, width));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, bottomRightBack.y, topLeftFront.z), glm::vec2(0, width));
-
-                    // Front Face
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, topLeftFront.y, topLeftFront.z), glm::vec2(0, height));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, bottomRightBack.y, topLeftFront.z), glm::vec2(0, 0));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, bottomRightBack.y, topLeftFront.z), glm::vec2(length, 0));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, bottomRightBack.y, topLeftFront.z), glm::vec2(length, 0));
-                    vertices.emplace_back(topLeftFront, glm::vec2(length, height));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, topLeftFront.y, topLeftFront.z), glm::vec2(0, height));
-
-                    // Back Face
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, topLeftFront.y, bottomRightBack.z), glm::vec2(0, height));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, bottomRightBack.y, bottomRightBack.z), glm::vec2(0, 0));
-                    vertices.emplace_back(bottomRightBack, glm::vec2(length, 0));
-                    vertices.emplace_back(bottomRightBack, glm::vec2(length, 0));
-                    vertices.emplace_back(glm::vec3(bottomRightBack.x, topLeftFront.y, bottomRightBack.z), glm::vec2(length, height));
-                    vertices.emplace_back(glm::vec3(topLeftFront.x, topLeftFront.y, bottomRightBack.z), glm::vec2(0, height));
-
-                    x += topLeftFront.x - x;
+                    glm::vec2 dimensions;
+                    if (getVoxel(x, y + 1, z) == nullptr && (meshTrackerTable[x][y][z] & FACE_TOP) != FACE_TOP) {
+                        getSurfaceCoordinates({x, y, z}, dimensions, FACE_TOP, meshTrackerTable);
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + .5f, z - .5f), glm::vec2(0, 0));
+                        vertices.emplace_back(glm::vec3(x - .5f, y + .5f, z -.5f), glm::vec2(dimensions.x + 1, 0));
+                        vertices.emplace_back(glm::vec3(x - .5f, y + .5f, z + dimensions.y + .5f), glm::vec2(dimensions.x + 1, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x - .5f, y + .5f, z + dimensions.y + .5f), glm::vec2(dimensions.x + 1, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + .5f, z + dimensions.y + .5f), glm::vec2(0, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + .5f, z - .5f), glm::vec2(0, 0));
+                    }
+                    if (getVoxel(x, y - 1, z) == nullptr && (meshTrackerTable[x][y][z] & FACE_BOTTOM) != FACE_BOTTOM) {
+                        getSurfaceCoordinates({x, y, z}, dimensions, FACE_BOTTOM, meshTrackerTable);
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + dimensions.y + .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z -.5f), glm::vec2(-dimensions.x - 1, 0));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y - .5f, z - .5f), glm::vec2(0, 0));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y - .5f, z - .5f), glm::vec2(0, 0));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y - .5f, z + dimensions.y + .5f), glm::vec2(0, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + dimensions.y + .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
+                    }
+                    if ((x + 1 >= CHUNK_SIZE_X ? getVoxelFromNeighborChunk(x + 1, y, z) : getVoxel(x + 1, y, z)) == nullptr && (meshTrackerTable[x][y][z] & FACE_LEFT) != FACE_LEFT) {
+                        getSurfaceCoordinates({x, y, z}, dimensions, FACE_LEFT, meshTrackerTable);
+                        vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
+                        vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z -.5f), glm::vec2(dimensions.x + 1, 0));
+                        vertices.emplace_back(glm::vec3(x + .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(dimensions.x + 1, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x + .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(dimensions.x + 1, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x + .5f, y + dimensions.y + .5f, z + dimensions.x + .5f), glm::vec2(0, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
+                    }
+                    if ((x - 1 < 0 ? getVoxelFromNeighborChunk(x - 1, y, z) : getVoxel(x - 1, y, z)) == nullptr && (meshTrackerTable[x][y][z] & FACE_RIGHT) != FACE_RIGHT) {
+                        getSurfaceCoordinates({x, y, z}, dimensions, FACE_RIGHT, meshTrackerTable);
+                        vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z -.5f), glm::vec2(-dimensions.x - 1, 0));
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
+                        vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z + dimensions.x + .5f), glm::vec2(0, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
+                    }
+                    if ((z + 1 >= CHUNK_SIZE_Z ? getVoxelFromNeighborChunk(x, y, z + 1) : getVoxel(x, y, z + 1)) == nullptr && (meshTrackerTable[x][y][z] & FACE_FRONT) != FACE_FRONT) {
+                        getSurfaceCoordinates({x, y, z}, dimensions, FACE_FRONT, meshTrackerTable);
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + .5f), glm::vec2(0, 0));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y - .5f, z +.5f), glm::vec2(dimensions.x + 1, 0));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + dimensions.y + .5f, z + .5f), glm::vec2(dimensions.x + 1, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + dimensions.y + .5f, z + .5f), glm::vec2(dimensions.x + 1, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z + .5f), glm::vec2(0, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + .5f), glm::vec2(0, 0));
+                    }
+                    if ((z - 1 < 0 ? getVoxelFromNeighborChunk(x, y, z - 1) : getVoxel(x, y, z - 1)) == nullptr && (meshTrackerTable[x][y][z] & FACE_BACK) != FACE_BACK) {
+                        getSurfaceCoordinates({x, y, z}, dimensions, FACE_BACK, meshTrackerTable);
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y - .5f, z -.5f), glm::vec2(-dimensions.x - 1, 0));
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z - .5f), glm::vec2(0, 0));
+                        vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z - .5f), glm::vec2(0, 0));
+                        vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(0, dimensions.y + 1));
+                        vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
+                    }
                 }
             }
         }
@@ -209,6 +267,7 @@ public:
     unsigned int VAO = 0;
     std::vector<unsigned int> vbos;
     Shader* shader = nullptr;
+    GLenum polygonMode = GL_FILL;
 
     std::array<std::array<std::array<Voxel*, CHUNK_SIZE_Z>, CHUNK_SIZE_Y>, CHUNK_SIZE_X> voxels{};
 
@@ -221,7 +280,7 @@ public:
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
             for (int y = 0; y < 5; y++) {
                 for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                    if (x == 5 && z == 4)
+                    if (x == 5 && z == 4 && y != 0)
                         continue;
                     voxels[x][y][z] = new Voxel(y == 0 ? TEXTURE_BEDROCK : TEXTURE_DEFAULT);
                 }
@@ -274,7 +333,7 @@ public:
         return nullptr;
     }
 
-    void draw(const glm::mat4 &matrices) const {
+    void draw(const glm::mat4 &matrices) {
         glBindVertexArray(VAO);
         glActiveTexture(GL_TEXTURE0);
         shader->use();
@@ -282,11 +341,20 @@ public:
         shader->setMat4("stuff", matrices * transform);
 
         auto it = vbos.begin();
+        if (InputManager::getMouseButtonDown(GLFW_MOUSE_BUTTON_MIDDLE)) {
+            if (polygonMode == GL_FILL) {
+                polygonMode = GL_LINE;
+            } else {
+                polygonMode = GL_FILL;
+            }
+        }
         for (const auto &[type, vertices]: mesh) {
             glBindBuffer(GL_ARRAY_BUFFER, *it.base());
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
             glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
             glBindTexture(GL_TEXTURE_2D, TextureManager::getTextureId(type));
+
+            glPolygonMode(GL_FRONT_AND_BACK, polygonMode);
 
             glDrawArrays(GL_TRIANGLES, 0, (int) vertices.size());
             it++;
