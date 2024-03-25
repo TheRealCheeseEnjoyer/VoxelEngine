@@ -119,10 +119,10 @@ private:
         }
 
         for (*lengthDimension += 1; *lengthDimension < lengthLimit; (*lengthDimension)++) {
-            if (((meshTrackerTable[start.x][start.y][start.z] & orientation) == orientation) ||
-                (getVoxel(start.x, start.y, start.z) == nullptr) ||
-                (getVoxel(start.x, start.y, start.z)->type != currentType) ||
-                (getVoxel(*neighbor.x, *neighbor.y, *neighbor.z) != nullptr)) {
+            if ((meshTrackerTable[start.x][start.y][start.z] & orientation) == orientation ||
+                getVoxel(start.x, start.y, start.z) == nullptr ||
+                getVoxel(start.x, start.y, start.z)->type != currentType ||
+                getVoxel(*neighbor.x, *neighbor.y, *neighbor.z) != nullptr) {
                 break;
             }
 
@@ -192,7 +192,7 @@ private:
                         vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y - .5f, z + dimensions.y + .5f), glm::vec2(0, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + dimensions.y + .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
                     }
-                    if (getVoxel(x + 1, y, z) == nullptr && (meshTrackerTable[x][y][z] & FACE_LEFT) != FACE_LEFT) {
+                    if ((x + 1 >= CHUNK_SIZE_X ? getVoxelFromNeighborChunk(x + 1, y, z) : getVoxel(x + 1, y, z)) == nullptr && (meshTrackerTable[x][y][z] & FACE_LEFT) != FACE_LEFT) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_LEFT, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
                         vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z -.5f), glm::vec2(dimensions.x + 1, 0));
@@ -201,7 +201,7 @@ private:
                         vertices.emplace_back(glm::vec3(x + .5f, y + dimensions.y + .5f, z + dimensions.x + .5f), glm::vec2(0, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
                     }
-                    if (getVoxel(x - 1, y, z) == nullptr && (meshTrackerTable[x][y][z] & FACE_RIGHT) != FACE_RIGHT) {
+                    if ((x - 1 < 0 ? getVoxelFromNeighborChunk(x - 1, y, z) : getVoxel(x - 1, y, z)) == nullptr && (meshTrackerTable[x][y][z] & FACE_RIGHT) != FACE_RIGHT) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_RIGHT, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z -.5f), glm::vec2(-dimensions.x - 1, 0));
@@ -210,7 +210,7 @@ private:
                         vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z + dimensions.x + .5f), glm::vec2(0, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
                     }
-                    if (getVoxel(x, y, z + 1) == nullptr && (meshTrackerTable[x][y][z] & FACE_FRONT) != FACE_FRONT) {
+                    if ((z + 1 >= CHUNK_SIZE_Z ? getVoxelFromNeighborChunk(x, y, z + 1) : getVoxel(x, y, z + 1)) == nullptr && (meshTrackerTable[x][y][z] & FACE_FRONT) != FACE_FRONT) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_FRONT, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + .5f), glm::vec2(0, 0));
                         vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y - .5f, z +.5f), glm::vec2(dimensions.x + 1, 0));
@@ -219,7 +219,7 @@ private:
                         vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z + .5f), glm::vec2(0, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + .5f), glm::vec2(0, 0));
                     }
-                    if (getVoxel(x, y, z - 1) == nullptr && (meshTrackerTable[x][y][z] & FACE_BACK) != FACE_BACK) {
+                    if ((z - 1 < 0 ? getVoxelFromNeighborChunk(x, y, z - 1) : getVoxel(x, y, z - 1)) == nullptr && (meshTrackerTable[x][y][z] & FACE_BACK) != FACE_BACK) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_BACK, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + dimensions.y + .5f, z - .5f), glm::vec2(-dimensions.x - 1, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y - .5f, z -.5f), glm::vec2(-dimensions.x - 1, 0));
