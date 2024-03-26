@@ -62,15 +62,10 @@ public:
         for (int x = std::max(0, cameraChunkCoords.x - MAX_RENDER_DISTANCE); x < std::min(WORLD_SIZE_X, cameraChunkCoords.x + MAX_RENDER_DISTANCE); x++) {
             for (int z = std::max(0, cameraChunkCoords.y - MAX_RENDER_DISTANCE); z < std::min(WORLD_SIZE_Z, cameraChunkCoords.y + MAX_RENDER_DISTANCE); ++z) {
                 glm::vec<2, int, glm::defaultp> chunkCoords(x, z);
-                if (glm::length((glm::vec2)(cameraChunkCoords - chunkCoords)) <= MAX_RENDER_DISTANCE && isInsideFrustum(camera, x, z))
+                if (glm::length((glm::vec2)(cameraChunkCoords - chunkCoords)) <= MAX_RENDER_DISTANCE)
                     chunks[x][z]->draw(camera.GetMatrices());
             }
         }
-    }
-
-    // TODO: frustum culling
-    static bool isInsideFrustum(const Camera& camera, int x, int z) {
-        return true;
     }
 };
 
