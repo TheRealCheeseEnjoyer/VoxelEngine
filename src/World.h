@@ -9,8 +9,8 @@
 #include "Chunk.h"
 #include "Camera.h"
 
-#define WORLD_SIZE_X 100
-#define WORLD_SIZE_Z 100
+#define WORLD_SIZE_X 32
+#define WORLD_SIZE_Z 32
 #define MAX_RENDER_DISTANCE 12
 #define SPAWN_CHUNK_RANGE (MAX_RENDER_DISTANCE * 2)
 
@@ -24,13 +24,19 @@ public:
     World() = delete;
 
     static void init(const Camera& camera) {
+
         memset(chunks, 0, WORLD_SIZE_X * WORLD_SIZE_Z);
         shader = new Shader();
         auto start = glfwGetTime();
 
+        srand(time(nullptr));
+
+        siv::PerlinNoise::seed_type seed = rand() * UINT_MAX;
+        siv::PerlinNoise noise{seed};
+
         for (int x = 0; x < WORLD_SIZE_X; ++x) {
             for (int z = 0; z < WORLD_SIZE_Z; ++z) {
-                chunks[x][z] = new Chunk({x, z}, shader);
+                chunks[x][z] = new Chunk({x, z}, shader, noise);
             }
         }
 

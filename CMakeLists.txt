@@ -23,6 +23,8 @@ add_executable(VoxelEngine main.cpp
         src/Chunk.h
         src/TextureManager.h
         src/Camera.h
+        src/PerlinNoise.h
+        src/PerlinNoise.h
 )
 
 

@@ -12,6 +12,7 @@
 #include "Voxel.h"
 #include "stb_image.h"
 #include "TextureManager.h"
+#include "PerlinNoise.h"
 
 #define CHUNK_SIZE_X 16
 #define CHUNK_SIZE_Y 16
@@ -273,15 +274,15 @@ public:
 
     std::unordered_map<TextureType, std::vector<Vertex>> mesh;
 
-    explicit Chunk(glm::vec2 position, Shader* shader) : position(position.x, 0, position.y), shader(shader) {
+    explicit Chunk(glm::vec2 position, Shader* shader, const siv::PerlinNoise& noise) : position(position.x, 0, position.y), shader(shader) {
         transform = glm::translate(transform, {position.x * CHUNK_SIZE_X, 0, position.y * CHUNK_SIZE_Z});
         memset(&voxels, 0, CHUNK_SIZE_X * CHUNK_SIZE_Y * CHUNK_SIZE_Z);
-
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
-            for (int y = 0; y < 5; y++) {
-                for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                    if (x == 5 && z == 4 && y != 0)
-                        continue;
+            for (int z = 0; z < CHUNK_SIZE_Z; z++) {
+                float frequency = .1f;
+
+                int value = noise.noise2D_01(CHUNK_SIZE_X * position.x + x * frequency, CHUNK_SIZE_Z * position.y + z * frequency) + .5f * noise.noise2D_01(CHUNK_SIZE_X * position.x + x * frequency, CHUNK_SIZE_Z * position.y + z * frequency) + .25f * noise.noise2D_01(CHUNK_SIZE_X * position.x + x * frequency, CHUNK_SIZE_Z * position.y + z * frequency) * CHUNK_SIZE_Y;
+                for (int y = 0; y < std::fmax(1, std::fmin(value, CHUNK_SIZE_Y)); ++y) {
                     voxels[x][y][z] = new Voxel(y == 0 ? TEXTURE_BEDROCK : TEXTURE_DEFAULT);
                 }
             }
@@ -341,7 +342,7 @@ public:
         shader->setMat4("stuff", matrices * transform);
 
         auto it = vbos.begin();
-        if (InputManager::getMouseButtonDown(GLFW_MOUSE_BUTTON_MIDDLE)) {
+        if (InputManager::getMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT)) {
             if (polygonMode == GL_FILL) {
                 polygonMode = GL_LINE;
             } else {
