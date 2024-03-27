@@ -79,8 +79,9 @@ GLFWwindow* init() {
 
 int main() {
     GLFWwindow* window = init();
+    ThreadPool::Start();
 
-    Camera camera({0, 10, 0}, {0, 1, 0}, 90, 0);
+    Camera camera({1600, 10, 1600}, {0, 1, 0}, 90, 0);
     World::init(camera);
 
 
@@ -122,5 +123,6 @@ int main() {
 
     glfwTerminate();
 
+    ThreadPool::Stop();
     return 0;
 }

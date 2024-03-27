@@ -25,6 +25,7 @@ add_executable(VoxelEngine main.cpp
         src/Camera.h
         src/PerlinNoise.h
         src/PerlinNoise.h
+        src/ThreadPool.h
 )
 
 
