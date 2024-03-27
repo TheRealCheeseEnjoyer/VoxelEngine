@@ -165,7 +165,6 @@ public:
         glBindVertexArray(0);
     }
 
-private:
     Chunk** northChunk = nullptr;
     Chunk** southChunk = nullptr;
     Chunk** eastChunk = nullptr;
@@ -305,8 +304,8 @@ public:
     std::unordered_map<TextureType, std::vector<Vertex>> mesh;
 
     explicit Chunk(glm::vec2 position, Shader* shader, const siv::PerlinNoise &noise, Chunk** north, Chunk** south,
-                   Chunk** east, Chunk** west) : northChunk(north), southChunk(south), eastChunk(east),
-                                                 westChunk(west), position(position.x, 0, position.y), shader(shader) {
+                   Chunk** east, Chunk** west) : position(position.x, 0, position.y), shader(shader) {
+        updateNeighboringChunks(north, south, east, west);
         transform = glm::translate(transform, {position.x * CHUNK_SIZE_X, 0, position.y * CHUNK_SIZE_Z});
         memset(&voxels, 0, CHUNK_SIZE_X * CHUNK_SIZE_Y * CHUNK_SIZE_Z);
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
@@ -326,9 +325,11 @@ public:
         }
     }
 
-    void init() {
-        createMesh();
-        loadMesh();
+    void updateNeighboringChunks(Chunk** north, Chunk** south, Chunk** east, Chunk** west) {
+        northChunk = north;
+        southChunk = south;
+        eastChunk = east;
+        westChunk = west;
     }
 
     Voxel* getVoxel(int x, int y, int z) {
@@ -340,25 +341,25 @@ public:
 
     Voxel* getVoxelFromNeighborChunk(int x, int y, int z) {
         if (x < 0) {
-            if (eastChunk == nullptr)
+            if (eastChunk == nullptr || *eastChunk == nullptr)
                 return nullptr;
             return (*eastChunk)->getVoxel(mod(x, CHUNK_SIZE_X), y, z);
         }
 
         if (x >= CHUNK_SIZE_X) {
-            if (westChunk == nullptr)
+            if (westChunk == nullptr || *westChunk == nullptr)
                 return nullptr;
             return (*westChunk)->getVoxel(mod(x, CHUNK_SIZE_X), y, z);
         }
 
         if (z < 0) {
-            if (southChunk == nullptr)
+            if (southChunk == nullptr || *southChunk == nullptr)
                 return nullptr;
             return (*southChunk)->getVoxel(x, y, mod(z, CHUNK_SIZE_Z));
         }
 
         if (z >= CHUNK_SIZE_Z) {
-            if (northChunk == nullptr)
+            if (northChunk == nullptr || *northChunk == nullptr)
                 return nullptr;
             return (*northChunk)->getVoxel(x, y, mod(z, CHUNK_SIZE_Z));
         }
