@@ -81,7 +81,7 @@ int main() {
     GLFWwindow* window = init();
     ThreadPool::Start();
 
-    Camera camera({1600, 10, 1600}, {0, 1, 0}, 90, 0);
+    Camera camera({1600, 5, 1600}, {0, 1, 0}, -135, 0);
     World::init(camera);
 
 
@@ -112,7 +112,7 @@ int main() {
         if (InputManager::getKeyDown(GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, true);
 
-        World::prepareNewChunks();
+        World::updateLoadedChunks(camera);
         World::draw(camera);
 
         glfwPollEvents();

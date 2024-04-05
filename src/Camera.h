@@ -98,7 +98,7 @@ public:
                 Pitch = -89.0f;
         }
 
-        // prepareNewChunks Front, Right and Up Vectors using the updated Euler angles
+        // updateLoadedChunks Front, Right and Up Vectors using the updated Euler angles
         updateCameraVectors();
     }
 

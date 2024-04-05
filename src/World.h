@@ -21,8 +21,18 @@ public:
     inline static glm::vec<2, int, glm::defaultp> cameraChunkPos;
     inline static std::queue<std::thread> threads;
     inline static Shader* shader;
+    inline static siv::PerlinNoise::seed_type seed;
+    inline static siv::PerlinNoise* noise = nullptr;
 
     World() = delete;
+
+    static void createChunk(int x, int z) {
+        Chunk** north = getChunk(x, z + 1);
+        Chunk** south = getChunk(x, z - 1);
+        Chunk** east = getChunk(x - 1, z);
+        Chunk** west = getChunk(x + 1, z);
+        ThreadPool::QueueJob([x, z, north, south, east, west]{World::chunks[x][z] = new Chunk({x, z}, shader, *noise, north, south, east, west);});
+    }
 
     static void init(const Camera& camera) {
         ThreadPool::Start();
@@ -31,21 +41,18 @@ public:
         auto start = glfwGetTime();
 
         srand(time(nullptr));
-        siv::PerlinNoise::seed_type seed = rand() * UINT_MAX;
-        siv::PerlinNoise noise{seed};
+        seed = rand() * UINT_MAX;
+        noise = new siv::PerlinNoise(seed);
 
         cameraChunkPos = getCameraChunkCoords(camera);
+        std::cout << cameraChunkPos.x << " " << cameraChunkPos.y << std::endl;
 
         int xStart = std::max(0, cameraChunkPos.x - LOADED_CHUNK_RANGE), xEnd = std::min(WORLD_SIZE_X, cameraChunkPos.x + LOADED_CHUNK_RANGE);
         int zStart = std::max(0, cameraChunkPos.y - LOADED_CHUNK_RANGE), zEnd = std::min(WORLD_SIZE_Z, cameraChunkPos.y + LOADED_CHUNK_RANGE);
 
         for (int x = xStart; x < xEnd; ++x) {
             for (int z = zStart; z < zEnd; ++z) {
-                Chunk** north = getChunk(x, z + 1);
-                Chunk** south = getChunk(x, z - 1);
-                Chunk** east = getChunk(x - 1, z);
-                Chunk** west = getChunk(x + 1, z);
-                ThreadPool::QueueJob([x, z, noise, north, south, east, west]{World::chunks[x][z] = new Chunk({x, z}, shader, noise, north, south, east, west);});
+                createChunk(x, z);
             }
         }
 
@@ -79,10 +86,37 @@ public:
     }
 
     // TODO: generate new chunks that are now in range, and delete out of range chunks
-    static void prepareNewChunks(const Camera& camera) {
+    static void updateLoadedChunks(const Camera& camera) {
         if (cameraChunkPos == getCameraChunkCoords(camera))
             return;
 
+        std::vector<Chunk**> newChunks;
+        newChunks.reserve(4 * LOADED_CHUNK_RANGE - 1);
+        cameraChunkPos = getCameraChunkCoords(camera);
+
+        int xStart = std::max(0, cameraChunkPos.x - LOADED_CHUNK_RANGE), xEnd = std::min(WORLD_SIZE_X, cameraChunkPos.x + LOADED_CHUNK_RANGE);
+        int zStart = std::max(0, cameraChunkPos.y - LOADED_CHUNK_RANGE), zEnd = std::min(WORLD_SIZE_Z, cameraChunkPos.y + LOADED_CHUNK_RANGE);
+
+        for (int x = xStart; x < xEnd; ++x) {
+            for (int z = zStart; z < zEnd; ++z) {
+                if (chunks[x][z] == nullptr) {
+                    createChunk(x, z);
+                    newChunks.push_back(&(chunks[x][z]));
+                }
+            }
+        }
+
+        ThreadPool::waitForAllJobs();
+
+        for (auto newChunk : newChunks) {
+            ThreadPool::QueueJob([newChunk] {(*newChunk)->createMesh();});
+        }
+
+        ThreadPool::waitForAllJobs();
+
+        for (auto newChunk : newChunks) {
+            (*newChunk)->loadMesh();
+        }
 
     }
 
@@ -91,7 +125,7 @@ public:
     }
 
     static void draw(Camera camera) {
-        glm::vec<2, int, glm::defaultp> cameraChunkCoords = {camera.Position.x / CHUNK_SIZE_X, camera.Position.z / CHUNK_SIZE_Z};
+        auto cameraChunkCoords = getCameraChunkCoords(camera);
         for (int x = std::max(0, cameraChunkCoords.x - MAX_RENDER_DISTANCE); x < std::min(WORLD_SIZE_X, cameraChunkCoords.x + MAX_RENDER_DISTANCE); x++) {
             for (int z = std::max(0, cameraChunkCoords.y - MAX_RENDER_DISTANCE); z < std::min(WORLD_SIZE_Z, cameraChunkCoords.y + MAX_RENDER_DISTANCE); ++z) {
                 glm::vec<2, int, glm::defaultp> chunkCoords(x, z);
