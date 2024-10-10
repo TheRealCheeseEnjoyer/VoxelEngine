@@ -97,7 +97,8 @@ public:
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + dimensions.y + .5f),
                                               glm::vec2(-dimensions.x - 1, dimensions.y + 1));
                     }
-                    tempVoxel = x + 1 >= CHUNK_SIZE_X ? getVoxelFromNeighborChunk(x + 1, y, z) : getVoxel(x + 1, y, z);
+                    //tempVoxel = x + 1 >= CHUNK_SIZE_X ? getVoxelFromNeighborChunk(x + 1, y, z) : getVoxel(x + 1, y, z);
+                    tempVoxel = getVoxel(x + 1, y, z);
                     if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) && (meshTrackerTable[x][y][z] & FACE_LEFT) != FACE_LEFT) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_LEFT, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
@@ -110,7 +111,8 @@ public:
                                               glm::vec2(0, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
                     }
-                    tempVoxel = (x - 1 < 0 ? getVoxelFromNeighborChunk(x - 1, y, z) : getVoxel(x - 1, y, z));
+                    //tempVoxel = (x - 1 < 0 ? getVoxelFromNeighborChunk(x - 1, y, z) : getVoxel(x - 1, y, z));
+                    tempVoxel = getVoxel(x - 1, y ,z);
                     if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) && (meshTrackerTable[x][y][z] & FACE_RIGHT) != FACE_RIGHT) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_RIGHT, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z - .5f),
@@ -123,7 +125,8 @@ public:
                         vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z - .5f),
                                               glm::vec2(-dimensions.x - 1, dimensions.y + 1));
                     }
-                    tempVoxel = z + 1 >= CHUNK_SIZE_Z ? getVoxelFromNeighborChunk(x, y, z + 1) : getVoxel(x, y, z + 1);
+                    //tempVoxel = z + 1 >= CHUNK_SIZE_Z ? getVoxelFromNeighborChunk(x, y, z + 1) : getVoxel(x, y, z + 1);
+                    tempVoxel = getVoxel(x, y, z + 1);
                     if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) && (meshTrackerTable[x][y][z] & FACE_FRONT) != FACE_FRONT) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_FRONT, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + .5f), glm::vec2(0, 0));
@@ -137,7 +140,8 @@ public:
                                               glm::vec2(0, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + .5f), glm::vec2(0, 0));
                     }
-                    tempVoxel = z - 1 < 0 ? getVoxelFromNeighborChunk(x, y, z - 1) : getVoxel(x, y, z - 1);
+                    //tempVoxel = z - 1 < 0 ? getVoxelFromNeighborChunk(x, y, z - 1) : getVoxel(x, y, z - 1);
+                    tempVoxel = getVoxel(x, y, z - 1);
                     if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) &&
                         (meshTrackerTable[x][y][z] & FACE_BACK) != FACE_BACK) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_BACK, meshTrackerTable);
@@ -344,13 +348,9 @@ public:
     }
 
     Voxel* getVoxel(int x, int y, int z) {
-        if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z)
+        if (y < 0 || y > CHUNK_SIZE_Y)
             return nullptr;
 
-        return &voxels[x + y * CHUNK_SIZE_X + z * CHUNK_SIZE_X * CHUNK_SIZE_Y];
-    }
-
-    Voxel* getVoxelFromNeighborChunk(int x, int y, int z) const {
         if (x < 0) {
             if (!eastChunk || !eastChunk->initialized)
                 return nullptr;
@@ -375,7 +375,7 @@ public:
             return northChunk->getVoxel(x, y, mod(z, CHUNK_SIZE_Z));
         }
 
-        return nullptr;
+        return &voxels[x + y * CHUNK_SIZE_X + z * CHUNK_SIZE_X * CHUNK_SIZE_Y];
     }
 
     glm::vec2 chunkToWorldCoordinate(int x, int z) const {

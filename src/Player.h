@@ -30,7 +30,7 @@ public:
         glm::vec3 currentBlockCoords = {round(camera.Position.x), round(camera.Position.y), round(camera.Position.z)};
         glm::vec3 currentBlock;
         float minDistance;
-        for (int x = 0; x < MAX_RANGE; x++) {
+        /*for (int x = 0; x < MAX_RANGE; x++) {
             for (int y = 0; y < MAX_RANGE; y++) {
                 for (int z = 0; z < MAX_RANGE; z++) {
                     glm::vec<3, int> blockCoords = currentBlockCoords;
@@ -49,7 +49,7 @@ public:
 
                 }
             }
-        }
+        }*/
     }
 };
 
