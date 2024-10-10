@@ -26,24 +26,22 @@ public:
     Voxel* world = nullptr;
     // TODO std::vector is not thread safe, change it
     std::vector<Chunk> chunks;
-    //Chunk* chunks = new Chunk[WORLD_SIZE_X * WORLD_SIZE_Y * WORLD_SIZE_Z];
     glm::vec<2, int> cameraChunkPos;
     std::queue<std::thread> threads;
     Shader* shader;
     siv::PerlinNoise::seed_type seed;
-    siv::PerlinNoise* noise = nullptr;
+    siv::PerlinNoise noise;
 
     explicit World(const Camera& camera) {
         shader = new Shader();
         chunks.reserve(WORLD_SIZE_X * WORLD_SIZE_Y * WORLD_SIZE_Z);
         world = (Voxel*)calloc(NUMBER_OF_BLOCKS_IN_WORLD, sizeof(Voxel));
-        //chunks = (Chunk*)calloc(WORLD_SIZE_X * WORLD_SIZE_Y * WORLD_SIZE_Z, sizeof(Chunk));
 
         auto start = glfwGetTime();
 
         srand(1);
         seed = rand() * UINT_MAX;
-        noise = new siv::PerlinNoise(seed);
+        noise.reseed(seed);
         cameraChunkPos = getCameraChunkCoords(camera);
 
         int xStart = std::max(0, cameraChunkPos.x - LOADED_CHUNK_RANGE), xEnd = std::min(WORLD_SIZE_X, cameraChunkPos.x + LOADED_CHUNK_RANGE);
@@ -80,7 +78,7 @@ public:
         Chunk* south = getChunk(x, z - 1);
         Chunk* east = getChunk(x - 1, z);
         Chunk* west = getChunk(x + 1, z);
-        chunks.emplace_back(glm::vec2(x, z), shader, *noise, north, south, east, west, &world[x * WORLD_SIZE_X * CHUNK_SIZE_X * CHUNK_SIZE_Z * CHUNK_SIZE_Y + z * CHUNK_SIZE_Z * CHUNK_SIZE_X * CHUNK_SIZE_Y]);
+        chunks.emplace_back(glm::vec2(x, z), shader, noise, north, south, east, west, &world[x * WORLD_SIZE_X * CHUNK_SIZE_X * CHUNK_SIZE_Z * CHUNK_SIZE_Y + z * CHUNK_SIZE_Z * CHUNK_SIZE_X * CHUNK_SIZE_Y]);
         //chunks[x][z].init({x, z}, shader, *noise, north, south, east, west);
         //ThreadPool::QueueJob([x, z, north, south, east, west, this]{chunks[x * WORLD_SIZE_X + z].init({x, z}, shader, *noise, north, south, east, west, &world[x * WORLD_SIZE_X * CHUNK_SIZE_X * CHUNK_SIZE_Z * CHUNK_SIZE_Y + z * CHUNK_SIZE_Z * CHUNK_SIZE_X * CHUNK_SIZE_Y]);});
         // ThreadPool::QueueJob([x, z, north, south, east, west, this] {
@@ -143,10 +141,8 @@ public:
         for (int x = std::max(0, cameraChunkCoords.x - MAX_RENDER_DISTANCE); x < std::min(WORLD_SIZE_X, cameraChunkCoords.x + MAX_RENDER_DISTANCE); x++) {
             for (int z = std::max(0, cameraChunkCoords.y - MAX_RENDER_DISTANCE); z < std::min(WORLD_SIZE_Z, cameraChunkCoords.y + MAX_RENDER_DISTANCE); ++z) {
                 glm::vec<2, int> chunkCoords(x, z);
-                if (length((glm::vec2)(cameraChunkCoords - chunkCoords)) <= MAX_RENDER_DISTANCE) {
+                if (length((glm::vec2)(cameraChunkCoords - chunkCoords)) <= MAX_RENDER_DISTANCE)
                     chunks[x * WORLD_SIZE_Z + z].draw(camera.GetMatrices());
-                    printf("Drawin' n: %d\n", x * WORLD_SIZE_Z + z);
-                }
             }
         }
     }
@@ -154,7 +150,6 @@ public:
     ~World() {
         free(world);
         delete shader;
-        delete noise;
     }
 };
 
