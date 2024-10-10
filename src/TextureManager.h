@@ -8,6 +8,7 @@
 #include "stb_image.h"
 
 enum TextureType {
+    TEXTURE_NONE,
     TEXTURE_DEFAULT,
     TEXTURE_BEDROCK,
 };
@@ -35,6 +36,8 @@ private:
                 break;
             case TEXTURE_BEDROCK:
                 data = stbi_load("assets/obamium.png", &width, &height, &nrChannels, 0);
+                break;
+            default:
                 break;
         }
 

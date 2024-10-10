@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <cctype>
 
+#include "src/Player.h"
+
 #define SCR_WIDTH 1280
 #define SCR_HEIGHT 720
 
@@ -81,8 +83,10 @@ int main() {
     GLFWwindow* window = init();
     ThreadPool::Start();
 
-    Camera camera({1600, 5, 1600}, {0, 1, 0}, -135, 0);
-    World::init(camera);
+    //Camera camera({1600, 5, 1600}, {0, 1, 0}, -135, 0);
+    Player player;
+    Camera* playerCamera = player.getCamera();
+    World* world = new World(*playerCamera);
 
 
     InputManager::registerKey(GLFW_KEY_W);
@@ -103,25 +107,23 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        auto mouseDelta = InputManager::getMouseDelta();
-        camera.ProcessMouseMovement(mouseDelta.x, mouseDelta.y);
-
-        auto direction = InputManager::getMovementInput();
-        camera.ProcessKeyboard(direction, deltaTime);
+        player.Update(deltaTime);
 
         if (InputManager::getKeyDown(GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, true);
 
-        World::updateLoadedChunks(camera);
-        World::draw(camera);
+        world->updateLoadedChunks(*playerCamera);
+        world->draw(*playerCamera);
 
         glfwPollEvents();
         InputManager::resetInput();
         glfwSwapBuffers(window);
         glFinish();
-        std::cout << "FPS: " << 1 / (glfwGetTime() - currentFrame) << std::endl;
+        //std::cout << "FPS: " << 1 / (glfwGetTime() - currentFrame) << std::endl;
     }
 
+    delete world;
+    glfwDestroyWindow(window);
     glfwTerminate();
 
     ThreadPool::Stop();

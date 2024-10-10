@@ -1,16 +1,16 @@
 #ifndef VOXELENGINE_CHUNK_H
 #define VOXELENGINE_CHUNK_H
 
+#include "Shader.h"
 #include <glm/vec2.hpp>
 #include <unordered_map>
 #include <array>
 #include <cstring>
-#include <tuple>
 #include <glm/ext/matrix_transform.hpp>
 #include <forward_list>
+#include <set>
 
 #include "Voxel.h"
-#include "stb_image.h"
 #include "TextureManager.h"
 #include "PerlinNoise.h"
 
@@ -36,6 +36,23 @@ enum FaceOrientation {
 
 class Chunk {
 public:
+    //Chunk() = default;
+    bool initialized = false;
+    glm::vec3 position;
+    glm::mat4 transform = glm::mat4(1);
+    unsigned int VAO = 0;
+    std::vector<unsigned int> vbos;
+    Shader* shader = nullptr;
+    GLenum polygonMode = GL_FILL;
+
+    Chunk* northChunk = nullptr;
+    Chunk* southChunk = nullptr;
+    Chunk* eastChunk = nullptr;
+    Chunk* westChunk = nullptr;
+
+    Voxel* voxels = nullptr;
+    std::unordered_map<TextureType, std::vector<Vertex>> mesh;
+
     void createMesh() {
         // Tracks which voxels have already been meshed
         std::array<std::array<std::array<char, CHUNK_SIZE_Z>, CHUNK_SIZE_Y>, CHUNK_SIZE_X> meshTrackerTable{};
@@ -45,7 +62,7 @@ public:
             for (int y = 0; y < CHUNK_SIZE_Y; ++y) {
                 for (int x = 0; x < CHUNK_SIZE_X; ++x) {
                     Voxel* voxel = getVoxel(x, y, z);
-                    if (voxel == nullptr)
+                    if (voxel == nullptr || voxel->type == TEXTURE_NONE)
                         continue;
 
                     if (!mesh.contains(voxel->type))
@@ -54,7 +71,8 @@ public:
                     auto &vertices = mesh[voxel->type];
 
                     glm::vec2 dimensions;
-                    if (getVoxel(x, y + 1, z) == nullptr && (meshTrackerTable[x][y][z] & FACE_TOP) != FACE_TOP) {
+                    Voxel* tempVoxel = getVoxel(x, y + 1, z);
+                    if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) && (meshTrackerTable[x][y][z] & FACE_TOP) != FACE_TOP) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_TOP, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + .5f, z - .5f), glm::vec2(0, 0));
                         vertices.emplace_back(glm::vec3(x - .5f, y + .5f, z - .5f), glm::vec2(dimensions.x + 1, 0));
@@ -66,7 +84,8 @@ public:
                                               glm::vec2(0, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + .5f, z - .5f), glm::vec2(0, 0));
                     }
-                    if (getVoxel(x, y - 1, z) == nullptr && (meshTrackerTable[x][y][z] & FACE_BOTTOM) != FACE_BOTTOM) {
+                    tempVoxel = getVoxel(x, y - 1, z);
+                    if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) && (meshTrackerTable[x][y][z] & FACE_BOTTOM) != FACE_BOTTOM) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_BOTTOM, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + dimensions.y + .5f),
                                               glm::vec2(-dimensions.x - 1, dimensions.y + 1));
@@ -78,8 +97,8 @@ public:
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + dimensions.y + .5f),
                                               glm::vec2(-dimensions.x - 1, dimensions.y + 1));
                     }
-                    if ((x + 1 >= CHUNK_SIZE_X ? getVoxelFromNeighborChunk(x + 1, y, z) : getVoxel(x + 1, y, z)) ==
-                        nullptr && (meshTrackerTable[x][y][z] & FACE_LEFT) != FACE_LEFT) {
+                    tempVoxel = x + 1 >= CHUNK_SIZE_X ? getVoxelFromNeighborChunk(x + 1, y, z) : getVoxel(x + 1, y, z);
+                    if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) && (meshTrackerTable[x][y][z] & FACE_LEFT) != FACE_LEFT) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_LEFT, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
                         vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z - .5f), glm::vec2(dimensions.x + 1, 0));
@@ -91,8 +110,8 @@ public:
                                               glm::vec2(0, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x + .5f, y - .5f, z + dimensions.x + .5f), glm::vec2(0, 0));
                     }
-                    if ((x - 1 < 0 ? getVoxelFromNeighborChunk(x - 1, y, z) : getVoxel(x - 1, y, z)) == nullptr &&
-                        (meshTrackerTable[x][y][z] & FACE_RIGHT) != FACE_RIGHT) {
+                    tempVoxel = (x - 1 < 0 ? getVoxelFromNeighborChunk(x - 1, y, z) : getVoxel(x - 1, y, z));
+                    if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) && (meshTrackerTable[x][y][z] & FACE_RIGHT) != FACE_RIGHT) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_RIGHT, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z - .5f),
                                               glm::vec2(-dimensions.x - 1, dimensions.y + 1));
@@ -104,8 +123,8 @@ public:
                         vertices.emplace_back(glm::vec3(x - .5f, y + dimensions.y + .5f, z - .5f),
                                               glm::vec2(-dimensions.x - 1, dimensions.y + 1));
                     }
-                    if ((z + 1 >= CHUNK_SIZE_Z ? getVoxelFromNeighborChunk(x, y, z + 1) : getVoxel(x, y, z + 1)) ==
-                        nullptr && (meshTrackerTable[x][y][z] & FACE_FRONT) != FACE_FRONT) {
+                    tempVoxel = z + 1 >= CHUNK_SIZE_Z ? getVoxelFromNeighborChunk(x, y, z + 1) : getVoxel(x, y, z + 1);
+                    if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) && (meshTrackerTable[x][y][z] & FACE_FRONT) != FACE_FRONT) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_FRONT, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + .5f), glm::vec2(0, 0));
                         vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y - .5f, z + .5f),
@@ -118,7 +137,8 @@ public:
                                               glm::vec2(0, dimensions.y + 1));
                         vertices.emplace_back(glm::vec3(x - .5f, y - .5f, z + .5f), glm::vec2(0, 0));
                     }
-                    if ((z - 1 < 0 ? getVoxelFromNeighborChunk(x, y, z - 1) : getVoxel(x, y, z - 1)) == nullptr &&
+                    tempVoxel = z - 1 < 0 ? getVoxelFromNeighborChunk(x, y, z - 1) : getVoxel(x, y, z - 1);
+                    if ((tempVoxel == nullptr || tempVoxel->type == TEXTURE_NONE) &&
                         (meshTrackerTable[x][y][z] & FACE_BACK) != FACE_BACK) {
                         getSurfaceCoordinates({x, y, z}, dimensions, FACE_BACK, meshTrackerTable);
                         vertices.emplace_back(glm::vec3(x + dimensions.x + .5f, y + dimensions.y + .5f, z - .5f),
@@ -165,25 +185,19 @@ public:
         glBindVertexArray(0);
     }
 
-    Chunk** northChunk = nullptr;
-    Chunk** southChunk = nullptr;
-    Chunk** eastChunk = nullptr;
-    Chunk** westChunk = nullptr;
-
     static int mod(int a, int b) {
         return (a % b + b) % b;
     }
 
-    void getSurfaceCoordinates(glm::vec<3, int, glm::defaultp> start, glm::vec2 &dimensions, FaceOrientation orientation,
+    void getSurfaceCoordinates(glm::vec<3, int> start, glm::vec2 &dimensions, FaceOrientation orientation,
                           auto &meshTrackerTable) {
         int length = 0, width = 0;
         int startLengthDimension, startWidthDimension;
         int lengthLimit, widthLimit;
         int* lengthDimension;
         int* widthDimension;
-        int lengthDiff, widthDiff;
         int neighborDirection;
-        glm::vec<3, int*, glm::defaultp> neighbor{};
+        glm::vec<3, int*> neighbor{};
         TextureType currentType = getVoxel(start.x, start.y, start.z)->type;
 
 
@@ -268,7 +282,8 @@ public:
                 if ((meshTrackerTable[start.x][start.y][start.z] & orientation) == orientation ||
                     getVoxel(start.x, start.y, start.z) == nullptr ||
                     getVoxel(start.x, start.y, start.z)->type != currentType ||
-                    getVoxel(*neighbor.x, *neighbor.y, *neighbor.z) != nullptr) {
+                    (getVoxel(*neighbor.x, *neighbor.y, *neighbor.z) != nullptr &&
+                    getVoxel(*neighbor.x, *neighbor.y, *neighbor.z)->type != TEXTURE_NONE)) {
                     isWholeLineOk = false;
                     break;
                 }
@@ -291,23 +306,19 @@ public:
         dimensions = {length, width};
     }
 
-public:
-    glm::vec3 position;
-    glm::mat4 transform = glm::mat4(1);
-    unsigned int VAO = 0;
-    std::vector<unsigned int> vbos;
-    Shader* shader = nullptr;
-    GLenum polygonMode = GL_FILL;
-
-    std::array<std::array<std::array<Voxel*, CHUNK_SIZE_Z>, CHUNK_SIZE_Y>, CHUNK_SIZE_X> voxels{};
-
-    std::unordered_map<TextureType, std::vector<Vertex>> mesh;
-
-    explicit Chunk(glm::vec2 position, Shader* shader, const siv::PerlinNoise &noise, Chunk** north, Chunk** south,
-                   Chunk** east, Chunk** west) : position(position.x, 0, position.y), shader(shader) {
+    Chunk(glm::vec2 position, Shader* shader, const siv::PerlinNoise &noise, Chunk* north, Chunk* south,
+                   Chunk* east, Chunk* west, Voxel* voxelArray) {
+        if (initialized) {
+            return;
+        }
+        initialized = true;
+        voxels = voxelArray;
+        this->position.x = position.x;
+        this->position.z = position.y;
+        this->shader = shader;
         updateNeighboringChunks(north, south, east, west);
-        transform = glm::translate(transform, {position.x * CHUNK_SIZE_X, 0, position.y * CHUNK_SIZE_Z});
-        memset(&voxels, 0, CHUNK_SIZE_X * CHUNK_SIZE_Y * CHUNK_SIZE_Z);
+        transform = translate(transform, {position.x * CHUNK_SIZE_X, 0, position.y * CHUNK_SIZE_Z});
+
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
                 float frequency = .1f;
@@ -318,14 +329,14 @@ public:
                         noise.noise2D_01(blockPos.x * frequency, blockPos.y * frequency)
                         + .5f * noise.noise2D_01(blockPos.x * frequency, blockPos.y * frequency)
                         + .25f * noise.noise2D_01(blockPos.x * frequency, blockPos.y * frequency) * CHUNK_SIZE_Y;
-                for (int y = 0; y < std::fmax(1, std::fmin(value, CHUNK_SIZE_Y)); ++y) {
-                    voxels[x][y][z] = new Voxel(y == 0 ? TEXTURE_BEDROCK : TEXTURE_DEFAULT);
+                for (int y = 0; y < std::max(1, std::min(value, CHUNK_SIZE_Y)); ++y) {
+                    voxels[x + y * CHUNK_SIZE_X + z * CHUNK_SIZE_X * CHUNK_SIZE_Y].type = (y == 0 ? TEXTURE_BEDROCK : TEXTURE_DEFAULT);
                 }
             }
         }
     }
 
-    void updateNeighboringChunks(Chunk** north, Chunk** south, Chunk** east, Chunk** west) {
+    void updateNeighboringChunks(Chunk* north, Chunk* south, Chunk* east, Chunk* west) {
         northChunk = north;
         southChunk = south;
         eastChunk = east;
@@ -336,32 +347,32 @@ public:
         if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z)
             return nullptr;
 
-        return voxels[x][y][z];
+        return &voxels[x + y * CHUNK_SIZE_X + z * CHUNK_SIZE_X * CHUNK_SIZE_Y];
     }
 
-    Voxel* getVoxelFromNeighborChunk(int x, int y, int z) {
+    Voxel* getVoxelFromNeighborChunk(int x, int y, int z) const {
         if (x < 0) {
-            if (eastChunk == nullptr || *eastChunk == nullptr)
+            if (!eastChunk || !eastChunk->initialized)
                 return nullptr;
-            return (*eastChunk)->getVoxel(mod(x, CHUNK_SIZE_X), y, z);
+            return eastChunk->getVoxel(mod(x, CHUNK_SIZE_X), y, z);
         }
 
         if (x >= CHUNK_SIZE_X) {
-            if (westChunk == nullptr || *westChunk == nullptr)
+            if (!westChunk || !westChunk->initialized)
                 return nullptr;
-            return (*westChunk)->getVoxel(mod(x, CHUNK_SIZE_X), y, z);
+            return westChunk->getVoxel(mod(x, CHUNK_SIZE_X), y, z);
         }
 
         if (z < 0) {
-            if (southChunk == nullptr || *southChunk == nullptr)
+            if (!southChunk || !southChunk->initialized)
                 return nullptr;
-            return (*southChunk)->getVoxel(x, y, mod(z, CHUNK_SIZE_Z));
+            return southChunk->getVoxel(x, y, mod(z, CHUNK_SIZE_Z));
         }
 
         if (z >= CHUNK_SIZE_Z) {
-            if (northChunk == nullptr || *northChunk == nullptr)
+            if (!northChunk || !northChunk->initialized)
                 return nullptr;
-            return (*northChunk)->getVoxel(x, y, mod(z, CHUNK_SIZE_Z));
+            return northChunk->getVoxel(x, y, mod(z, CHUNK_SIZE_Z));
         }
 
         return nullptr;

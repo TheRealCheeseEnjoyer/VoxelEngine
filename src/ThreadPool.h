@@ -1,20 +1,18 @@
 #ifndef VOXELENGINE_THREADPOOL_H
 #define VOXELENGINE_THREADPOOL_H
 
-#include <atomic>
 #include <vector>
 #include <thread>
 #include <queue>
 #include <condition_variable>
 #include <functional>
-#include <utility>
 
 class ThreadPool {
 public:
     ThreadPool() = delete;
     static void Start() {
-        auto num_threads = std::thread::hardware_concurrency();
-        for (int i = 0; i < num_threads; ++i) {
+        const auto num_threads = std::thread::hardware_concurrency();
+        for (unsigned int i = 0; i < num_threads; ++i) {
             threads.emplace_back(&ThreadPool::ThreadLoop);
         }
     }
