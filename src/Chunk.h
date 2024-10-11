@@ -391,13 +391,25 @@ public:
         loadMesh(voxel->type);
     }
 
+    bool placeVoxel(int x, int y, int z, TextureType type) {
+        Voxel* voxel = getVoxel(x, y, z);
+        if (voxel == nullptr || voxel->type != TEXTURE_NONE)
+            return false;
+
+        voxel->type = type;
+        mesh[type].clear();
+        createMesh(voxel->type);
+        loadMesh(voxel->type);
+        return true;
+    }
+
     void destroyVoxel(int x, int y, int z) {
         Voxel* toDestroy = getVoxel(x, y, z);
-        TextureType type = toDestroy->type;
+        TextureType oldType = toDestroy->type;
         toDestroy->type = TEXTURE_NONE;
 
         std::set<TextureType> neighborTextures;
-        neighborTextures.insert(type);
+        neighborTextures.insert(oldType);
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
             for (int offsetY = -1; offsetY <= 1; offsetY++) {
                 for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
@@ -443,7 +455,7 @@ public:
         shader->setInt("TextureUnitId", 0);
         shader->setMat4("stuff", matrices * transform);
 
-        if (InputManager::getMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT)) {
+        if (InputManager::getMouseButtonDown(GLFW_MOUSE_BUTTON_MIDDLE)) {
             if (polygonMode == GL_FILL) {
                 polygonMode = GL_LINE;
             } else {

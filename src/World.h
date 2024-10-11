@@ -107,6 +107,13 @@ public:
         return chunks[(x / CHUNK_SIZE_X) * WORLD_SIZE_Z + (z / CHUNK_SIZE_Z)].getVoxel(x % CHUNK_SIZE_X, y % CHUNK_SIZE_Y, z % CHUNK_SIZE_Z);
     }
 
+    bool placeVoxel(int x, int y, int z, TextureType type) {
+        if (x < 0 || x >= WORLD_SIZE_X * CHUNK_SIZE_X || y < 0 || y >= WORLD_SIZE_Y * CHUNK_SIZE_Y || z < 0 || z >= WORLD_SIZE_Z * CHUNK_SIZE_Z)
+            return false;
+
+        return chunks[(x / CHUNK_SIZE_X) * WORLD_SIZE_Z + (z / CHUNK_SIZE_Z)].placeVoxel(x % CHUNK_SIZE_X, y % CHUNK_SIZE_Y, z % CHUNK_SIZE_Z, type);
+    }
+
     void destroyVoxel(int x, int y, int z) {
         if (x < 0 || x >= WORLD_SIZE_X * CHUNK_SIZE_X || y < 0 || y >= WORLD_SIZE_Y * CHUNK_SIZE_Y || z < 0 || z >= WORLD_SIZE_Z * CHUNK_SIZE_Z)
             return;

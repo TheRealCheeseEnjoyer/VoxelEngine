@@ -96,6 +96,7 @@ int main() {
     InputManager::registerKey(GLFW_KEY_ESCAPE);
     InputManager::registerButton(GLFW_MOUSE_BUTTON_LEFT);
     InputManager::registerButton(GLFW_MOUSE_BUTTON_RIGHT);
+    InputManager::registerButton(GLFW_MOUSE_BUTTON_MIDDLE);
 
     float deltaTime;    // Time between current frame and last frame
     float lastFrame = 0.0f; // Time of last frame
