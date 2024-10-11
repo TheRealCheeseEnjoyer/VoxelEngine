@@ -32,14 +32,17 @@ public:
     siv::PerlinNoise::seed_type seed;
     siv::PerlinNoise noise;
 
-    explicit World(const Camera& camera) {
+    inline static World* instance = nullptr;
+
+    explicit World(const Camera& camera)  {
+        instance = this;
         shader = new Shader();
         chunks.reserve(WORLD_SIZE_X * WORLD_SIZE_Y * WORLD_SIZE_Z);
         world = (Voxel*)calloc(NUMBER_OF_BLOCKS_IN_WORLD, sizeof(Voxel));
 
         auto start = glfwGetTime();
 
-        srand(1);
+        srand(time(nullptr));
         seed = rand() * UINT_MAX;
         noise.reseed(seed);
         cameraChunkPos = getCameraChunkCoords(camera);
@@ -95,6 +98,20 @@ public:
             return nullptr;
 
         return &chunks[x * WORLD_SIZE_Z + z];
+    }
+
+    Voxel* getVoxel(int x, int y, int z) {
+        if (x < 0 || x >= WORLD_SIZE_X * CHUNK_SIZE_X || y < 0 || y >= WORLD_SIZE_Y * CHUNK_SIZE_Y || z < 0 || z >= WORLD_SIZE_Z * CHUNK_SIZE_Z)
+            return nullptr;
+
+        return chunks[(x / CHUNK_SIZE_X) * WORLD_SIZE_Z + (z / CHUNK_SIZE_Z)].getVoxel(x % CHUNK_SIZE_X, y % CHUNK_SIZE_Y, z % CHUNK_SIZE_Z);
+    }
+
+    void destroyVoxel(int x, int y, int z) {
+        if (x < 0 || x >= WORLD_SIZE_X * CHUNK_SIZE_X || y < 0 || y >= WORLD_SIZE_Y * CHUNK_SIZE_Y || z < 0 || z >= WORLD_SIZE_Z * CHUNK_SIZE_Z)
+            return;
+
+        return chunks[(x / CHUNK_SIZE_X) * WORLD_SIZE_Z + (z / CHUNK_SIZE_Z)].destroyVoxel(x % CHUNK_SIZE_X, y % CHUNK_SIZE_Y, z % CHUNK_SIZE_Z);
     }
 
     // TODO: generate new chunks that are now in range, and delete out of range chunks

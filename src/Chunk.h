@@ -36,12 +36,11 @@ enum FaceOrientation {
 
 class Chunk {
 public:
-    //Chunk() = default;
     bool initialized = false;
     glm::vec3 position;
     glm::mat4 transform = glm::mat4(1);
     unsigned int VAO = 0;
-    std::vector<unsigned int> vbos;
+    std::unordered_map<TextureType, unsigned int> vbos;
     Shader* shader = nullptr;
     GLenum polygonMode = GL_FILL;
 
@@ -53,7 +52,7 @@ public:
     Voxel* voxels = nullptr;
     std::unordered_map<TextureType, std::vector<Vertex>> mesh;
 
-    void createMesh() {
+    void createMesh(int meshMask = -1) {
         // Tracks which voxels have already been meshed
         std::array<std::array<std::array<char, CHUNK_SIZE_Z>, CHUNK_SIZE_Y>, CHUNK_SIZE_X> meshTrackerTable{};
         memset(&meshTrackerTable, 0, CHUNK_SIZE_Z * CHUNK_SIZE_Y * CHUNK_SIZE_X);
@@ -62,7 +61,7 @@ public:
             for (int y = 0; y < CHUNK_SIZE_Y; ++y) {
                 for (int x = 0; x < CHUNK_SIZE_X; ++x) {
                     Voxel* voxel = getVoxel(x, y, z);
-                    if (voxel == nullptr || voxel->type == TEXTURE_NONE)
+                    if (voxel == nullptr || voxel->type == TEXTURE_NONE || (meshMask != -1 && voxel->type != meshMask))
                         continue;
 
                     if (!mesh.contains(voxel->type))
@@ -161,29 +160,33 @@ public:
         }
     }
 
-    void loadMesh() {
+    void loadMesh(int meshMask = -1) {
         if (VAO == 0) {
             glGenVertexArrays(1, &VAO);
         }
 
         glBindVertexArray(VAO);
 
+
+
         if (vbos.size() < mesh.size()) {
-            int n = mesh.size() - vbos.size();
-            vbos.resize(mesh.size());
-            glGenBuffers(n, (vbos.end() - n).base());
+            for (const auto& pair : mesh) {
+                if (vbos.contains(pair.first)) continue;
+                vbos.insert({pair.first, 0});
+                glGenBuffers(1, &vbos[pair.first]);
+            }
         }
 
-        auto it = mesh.begin();
-        for (unsigned int vbo: vbos) {
+        for (auto& [type, vbo] : vbos) {
+            if (meshMask != -1 && meshMask != type)
+                continue;
             glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) (it->second.size() * sizeof(Vertex)), it->second.data(),
+            glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) (mesh[type].size() * sizeof(Vertex)), mesh[type].data(),
                          GL_STATIC_DRAW);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) (3 * sizeof(float)));
             glEnableVertexAttribArray(1);
-            std::advance(it, 1);
         }
 
         glBindVertexArray(0);
@@ -378,6 +381,57 @@ public:
         return &voxels[x + y * CHUNK_SIZE_X + z * CHUNK_SIZE_X * CHUNK_SIZE_Y];
     }
 
+    void neighborBlockDestroyed(int x, int y, int z) {
+        Voxel* voxel = getVoxel(x, y, z);
+        if (getVoxel(x, y, z) == nullptr || getVoxel(x, y, z)->type == TEXTURE_NONE)
+            return;
+
+        mesh[voxel->type].clear();
+        createMesh(voxel->type);
+        loadMesh(voxel->type);
+    }
+
+    void destroyVoxel(int x, int y, int z) {
+        Voxel* toDestroy = getVoxel(x, y, z);
+        TextureType type = toDestroy->type;
+        toDestroy->type = TEXTURE_NONE;
+
+        std::set<TextureType> neighborTextures;
+        neighborTextures.insert(type);
+        for (int offsetX = -1; offsetX <= 1; offsetX++) {
+            for (int offsetY = -1; offsetY <= 1; offsetY++) {
+                for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
+                    if (offsetX != 0 && offsetY != 0 || offsetX != 0 && offsetZ != 0 || offsetY != 0 && offsetZ != 0)
+                        continue;
+                    Voxel* voxel = getVoxel(x + offsetX, y + offsetY, z + offsetZ);
+                    if (voxel == nullptr || voxel->type == TEXTURE_NONE || neighborTextures.contains(voxel->type))
+                        continue;
+
+                    neighborTextures.insert(voxel->type);
+                }
+            }
+        }
+
+        for (auto type : neighborTextures) {
+            mesh[type].clear();
+            createMesh(type);
+            loadMesh(type);
+        }
+
+        if (x == CHUNK_SIZE_X - 1 && westChunk != nullptr && westChunk->initialized) {
+            westChunk->neighborBlockDestroyed(0, y, z);
+        } else if (x == 0 && eastChunk != nullptr && eastChunk->initialized) {
+            eastChunk->neighborBlockDestroyed(CHUNK_SIZE_X - 1, y, z);
+        }
+
+        if (z == 0 && southChunk != nullptr && southChunk->initialized) {
+            southChunk->neighborBlockDestroyed(x, y, CHUNK_SIZE_Z - 1);
+        } else if (z == CHUNK_SIZE_Z - 1 && northChunk != nullptr && northChunk->initialized) {
+            northChunk->neighborBlockDestroyed(x, y, 0);
+        }
+
+    }
+
     glm::vec2 chunkToWorldCoordinate(int x, int z) const {
         return {CHUNK_SIZE_X * position.x + x, CHUNK_SIZE_Z * position.z + z};
     }
@@ -389,7 +443,6 @@ public:
         shader->setInt("TextureUnitId", 0);
         shader->setMat4("stuff", matrices * transform);
 
-        auto it = vbos.begin();
         if (InputManager::getMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT)) {
             if (polygonMode == GL_FILL) {
                 polygonMode = GL_LINE;
@@ -398,7 +451,7 @@ public:
             }
         }
         for (const auto &[type, vertices]: mesh) {
-            glBindBuffer(GL_ARRAY_BUFFER, *it.base());
+            glBindBuffer(GL_ARRAY_BUFFER, vbos[type]);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
             glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) (3 * sizeof(float)));
             glBindTexture(GL_TEXTURE_2D, TextureManager::getTextureId(type));
@@ -406,7 +459,6 @@ public:
             glPolygonMode(GL_FRONT_AND_BACK, polygonMode);
 
             glDrawArrays(GL_TRIANGLES, 0, (int) vertices.size());
-            it++;
         }
     }
 };
