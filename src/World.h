@@ -11,9 +11,9 @@
 #include "ThreadPool.h"
 
 // sizes in chunk
-#define WORLD_SIZE_X 2
+#define WORLD_SIZE_X 100
 #define WORLD_SIZE_Y 1
-#define WORLD_SIZE_Z 10
+#define WORLD_SIZE_Z 100
 
 #define MAX_RENDER_DISTANCE 12
 
@@ -50,28 +50,40 @@ public:
         int xStart = std::max(0, cameraChunkPos.x - LOADED_CHUNK_RANGE), xEnd = std::min(WORLD_SIZE_X, cameraChunkPos.x + LOADED_CHUNK_RANGE);
         int zStart = std::max(0, cameraChunkPos.y - LOADED_CHUNK_RANGE), zEnd = std::min(WORLD_SIZE_Z, cameraChunkPos.y + LOADED_CHUNK_RANGE);
 
+        std::set<Chunk*> tChunks;
         for (int x = xStart; x < xEnd; ++x) {
             for (int z = zStart; z < zEnd; ++z) {
                 createChunk(x, z);
+                tChunks.insert(&chunks.back());
             }
         }
 
         ThreadPool::waitForAllJobs();
 
-        for (int x = xStart; x < xEnd; x++) {
+        for (int i = 0; i < chunks.size(); i++) {
+            chunks[i].createMesh();
+        }
+
+        /*for (int x = xStart; x < xEnd; x++) {
             for (int z = zStart; z < zEnd; z++) {
                 //ThreadPool::QueueJob([x, z, this]{chunks[x * WORLD_SIZE_X + z].createMesh();});
+                if (!tChunks.contains(&chunks[x * WORLD_SIZE_Z + z]))
+                    fprintf(stderr, "Chunk error");
                 chunks[x * WORLD_SIZE_Z + z].createMesh();
             }
-        }
+        }*/
 
         ThreadPool::waitForAllJobs();
 
-        for (int x = xStart; x < xEnd; x++) {
+        for (int i = 0; i < chunks.size(); i++) {
+            chunks[i].loadMesh();
+        }
+
+        /*for (int x = xStart; x < xEnd; x++) {
             for (int z = zStart; z < zEnd; z++) {
                 chunks[x * WORLD_SIZE_Z + z].loadMesh();
             }
-        }
+        }*/
 
         std::cout << glfwGetTime() - start << std::endl;
     }

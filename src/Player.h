@@ -120,31 +120,23 @@ public:
             glm::vec3 newBlockCoords = blockLookedAt;
             switch (faceLookedAt) {
                 case FACE_TOP:
-                    printf("top\n");
                     newBlockCoords.y += 1;
                     break;
                 case FACE_BOTTOM:
-                    printf("bottom\n");
                     newBlockCoords.y -= 1;
                     break;
                 case FACE_LEFT:
-                    printf("left\n");
                     newBlockCoords.x += 1;
                     break;
                 case FACE_RIGHT:
-                    printf("right\n");
                     newBlockCoords.x -= 1;
                     break;
                 case FACE_FRONT:
-                    printf("front\n");
                     newBlockCoords.z += 1;
                     break;
                 case FACE_BACK:
-                    printf("back\n");
                     newBlockCoords.z -= 1;
                     break;
-                case -1:
-                    printf("Error\n");
             }
             World::instance->placeVoxel(newBlockCoords.x, newBlockCoords.y, newBlockCoords.z, TEXTURE_DEFAULT);
         }

@@ -120,7 +120,7 @@ int main() {
         InputManager::resetInput();
         glfwSwapBuffers(window);
         glFinish();
-        //std::cout << "FPS: " << 1 / (glfwGetTime() - currentFrame) << std::endl;
+        std::cout << "FPS: " << 1 / (glfwGetTime() - currentFrame) << std::endl;
     }
 
     delete world;
