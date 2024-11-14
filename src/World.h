@@ -11,9 +11,9 @@
 #include "ThreadPool.h"
 
 // sizes in chunk
-#define WORLD_SIZE_X 100
+#define WORLD_SIZE_X 10
 #define WORLD_SIZE_Y 1
-#define WORLD_SIZE_Z 100
+#define WORLD_SIZE_Z 10
 
 #define MAX_RENDER_DISTANCE 12
 
@@ -49,12 +49,10 @@ public:
 
         int xStart = std::max(0, cameraChunkPos.x - LOADED_CHUNK_RANGE), xEnd = std::min(WORLD_SIZE_X, cameraChunkPos.x + LOADED_CHUNK_RANGE);
         int zStart = std::max(0, cameraChunkPos.y - LOADED_CHUNK_RANGE), zEnd = std::min(WORLD_SIZE_Z, cameraChunkPos.y + LOADED_CHUNK_RANGE);
-
-        std::set<Chunk*> tChunks;
+        
         for (int x = xStart; x < xEnd; ++x) {
             for (int z = zStart; z < zEnd; ++z) {
                 createChunk(x, z);
-                tChunks.insert(&chunks.back());
             }
         }
 
@@ -117,6 +115,10 @@ public:
             return nullptr;
 
         return chunks[(x / CHUNK_SIZE_X) * WORLD_SIZE_Z + (z / CHUNK_SIZE_Z)].getVoxel(x % CHUNK_SIZE_X, y % CHUNK_SIZE_Y, z % CHUNK_SIZE_Z);
+    }
+
+    Voxel* getVoxel(glm::vec3 position) {
+        return getVoxel(position.x, position.y, position.z);
     }
 
     bool placeVoxel(int x, int y, int z, TextureType type) {

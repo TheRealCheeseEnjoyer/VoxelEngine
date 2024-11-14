@@ -2,64 +2,65 @@
 #define PLAYER_H
 
 #define MAX_RANGE 4
+#define MOUSE_SENSITIVITY 1
 
 #include "Camera.h"
 #include "World.h"
-#include <math.h>
+
+#include "AABB.h"
+#include "Collisions.h"
 
 class Player {
     Camera camera;
+    AABB aabb;
+
     glm::vec3 blockLookedAt = {-1, -1, -1};
-    FaceOrientation faceLookedAt;
+    FaceOrientation faceLookedAt = FACE_TOP;
 
-    static bool rayIntersectsBlock(glm::vec3 origin, glm::vec3 direction, glm::vec3 aabb_min, glm::vec3 aabb_max, float& distance, FaceOrientation& face) {
-        float tmin = -INFINITY, tmax = INFINITY;
+    float movementSpeed = 15;
+    float fallSpeed = 1;
 
-        FaceOrientation yFace = (FaceOrientation)-1, xFace = (FaceOrientation)-1, zFace = (FaceOrientation)-1;
-        if (origin.y > aabb_max.y)
-            yFace = FACE_TOP;
-        else if (origin.y < aabb_min.y)
-            yFace = FACE_BOTTOM;
+    static AABB getPlayerAABB(glm::vec3 position) {
+        return {
+            .minX = position.x -.25f,
+            .maxX = position.x + .25f,
+            .minY = position.y - 1.75f,
+            .maxY = position.y + .25f,
+            .minZ = position.z - .25f,
+            .maxZ = position.z + .25f,
+        };
+    }
 
-        if (origin.x > aabb_max.x)
-            xFace = FACE_LEFT;
-        else if (origin.x < aabb_min.x)
-            xFace = FACE_RIGHT;
+    static AABB getBlockAABB(glm::vec3 blockCoords) {
+        return {
+            .minX = blockCoords.x - .5f,
+            .maxX = blockCoords.x + .5f,
+            .minY = blockCoords.y - .5f,
+            .maxY = blockCoords.y + .5f,
+            .minZ = blockCoords.z - .5f,
+            .maxZ = blockCoords.z + .5f,
+            };
+    }
 
-        if (origin.z > aabb_max.z)
-            zFace = FACE_FRONT;
-        else if (origin.z < aabb_min.z)
-            zFace = FACE_BACK;
+    bool isCollidingWithNearBlocks(glm::vec3 pos)  {
+        for (int x = -1; x <= 1; x++) {
+            for (int y = -2; y <= 0; y++) {
+                for (int z = -1; z <= 1; z++) {
+                    glm::vec3 blockPos = {round(pos.x + x), round(pos.y + y), round(pos.z + z)};
+                    Voxel* voxel = World::instance->getVoxel(blockPos);
+                    if (voxel == nullptr || voxel->type == TEXTURE_NONE)
+                        continue;
 
-        float tx1 = (aabb_min.x - origin.x) / direction.x;
-        float tx2 = (aabb_max.x - origin.x) / direction.x;
-
-        tmin = fmax(tmin, fmin(tx1, tx2));
-        tmax = fmin(tmax, fmax(tx1, tx2));
-
-        float ty1 = (aabb_min.y - origin.y) / direction.y;
-        float ty2 = (aabb_max.y - origin.y) / direction.y;
-
-        tmin = fmax(tmin, fmin(ty1, ty2));
-        tmax = fmin(tmax, fmax(ty1, ty2));
-
-        float tz1 = (aabb_min.z - origin.z) / direction.z;
-        float tz2 = (aabb_max.z - origin.z) / direction.z;
-
-        tmin = fmax(tmin, fmin(tz1, tz2));
-        tmax = fmin(tmax, fmax(tz1, tz2)),
-
-    	distance = tmin;
-        glm::vec3 ray = origin + direction * distance;
-        if (ray.y > aabb_min.y && ray.y < aabb_max.y && ray.z > aabb_min.z && ray.z < aabb_max.z) {
-            face = xFace;
-        } else if (ray.y > aabb_min.y && ray.y < aabb_max.y && ray.x > aabb_min.x && ray.x < aabb_max.x) {
-            face = zFace;
-        } else if (ray.x > aabb_min.x && ray.x < aabb_max.x && ray.z > aabb_min.z && ray.z < aabb_max.z) {
-            face = yFace;
+                    AABB blockAABB = getBlockAABB(blockPos);
+                    AABB playerAABB = getPlayerAABB(pos);
+                    if (Collisions::AABBToAABB(playerAABB, blockAABB)) {
+                        return true;
+                    }
+                }
+            }
         }
 
-        return tmin <= tmax && tmax > 0;
+        return false;
     }
 
     void getBlockLookedAt() {
@@ -72,47 +73,77 @@ class Player {
                 for (int z = -MAX_RANGE; z <= MAX_RANGE; z++) {
                     glm::vec3 blockCoords = {currentBlockCoords.x + x, currentBlockCoords.y + y, currentBlockCoords.z + z};
 
-                    if (World::instance->getVoxel(blockCoords.x, blockCoords.y, blockCoords.z) == nullptr || World::instance->getVoxel(blockCoords.x, blockCoords.y, blockCoords.z)->type == TEXTURE_NONE)
+                    Voxel* voxel = World::instance->getVoxel(blockCoords.x, blockCoords.y, blockCoords.z);
+                    if (voxel == nullptr || voxel->type == TEXTURE_NONE)
                         continue;
 
                     float distance;
                     FaceOrientation face;
-                    float boxMinX = blockCoords.x - .5f, boxMinY = blockCoords.y - .5f, boxMinZ = blockCoords.z - .5f;
-                    float boxMaxX = blockCoords.x + .5f, boxMaxY = blockCoords.y + .5f, boxMaxZ = blockCoords.z + .5f;
-
-                    if (rayIntersectsBlock(
-                        camera.Position,
-                        camera.Front,
-                        {boxMinX, boxMinY, boxMinZ},
-                        {boxMaxX, boxMaxY, boxMaxZ},
-                        distance,
-                        face)) {
-
-
-                        if (distance > MAX_RANGE) {
-                            continue;
-                        }
+                    AABB aabbBox = getBlockAABB(blockCoords);
+                    if (Collisions::rayToAABB(camera.Position, camera.Front, aabbBox, distance, face)) {
+                        if (distance > MAX_RANGE) continue;
                         if (distance < minDistance) {
                             faceLookedAt = face;
                             minDistance = distance;
                             blockLookedAt = blockCoords;
-                        }}
+                        }
+                    }
                 }
             }
         }
     }
 
+    void lookAround(glm::vec2 mouseDelta) {
+        float xOffset = mouseDelta.x * MOUSE_SENSITIVITY;
+        float yOffset = mouseDelta.y * MOUSE_SENSITIVITY;
+
+        float newYaw = camera.Yaw + xOffset;
+        float newPitch = camera.Pitch + yOffset;
+
+        if (newPitch > 89.9f)
+            newPitch = 89.9f;
+        if (newPitch < -89.9f)
+            newPitch = -89.9f;
+
+        camera.Yaw = newYaw;
+        camera.Pitch = newPitch;
+    }
+
 public:
-    explicit Player(glm::vec3 position = {0, 0, 0}) : camera(position) {}
+    explicit Player(glm::vec3 position = {0, 7, 0}) : camera(position) {}
 
     Camera* getCamera() { return &camera; }
 
     void Update(const float deltaTime) {
-        auto mouseDelta = InputManager::getMouseDelta();
-        camera.ProcessMouseMovement(mouseDelta.x, mouseDelta.y);
+        aabb = getPlayerAABB(camera.Position);
 
-        auto direction = InputManager::getMovementInput();
-        camera.ProcessKeyboard(direction, deltaTime);
+        glm::vec3 newPos = camera.Position;
+        auto mouseDelta = InputManager::getMouseDelta();
+        lookAround(mouseDelta);
+
+        auto input = InputManager::getMovementInput();
+        float velocity = movementSpeed * deltaTime;
+        glm::vec3 cameraRightDisplacement = input.x * velocity * camera.Right;
+        glm::vec3 cameraFrontDisplacement = input.y * velocity * normalize(glm::vec3(camera.Front.x, 0, camera.Front.z));
+        glm::vec3 displacement = cameraFrontDisplacement + cameraRightDisplacement;
+
+        newPos.x += displacement.x;
+        if (isCollidingWithNearBlocks(newPos))
+            newPos = camera.Position;
+
+        glm::vec3 tempPos = newPos;
+        newPos.z += displacement.z;
+
+        if (isCollidingWithNearBlocks(newPos))
+            newPos = tempPos;
+
+        tempPos = newPos;
+        newPos.y -= fallSpeed * deltaTime;
+
+        if (isCollidingWithNearBlocks(newPos))
+            newPos = tempPos;
+
+        camera.Position = newPos;
 
         getBlockLookedAt();
 
@@ -143,6 +174,8 @@ public:
 
         if (InputManager::getMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT))
             World::instance->destroyVoxel(blockLookedAt.x, blockLookedAt.y, blockLookedAt.z);
+
+        camera.Update();
     }
 };
 

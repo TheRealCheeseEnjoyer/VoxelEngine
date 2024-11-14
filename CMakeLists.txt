@@ -27,6 +27,8 @@ add_executable(VoxelEngine main.cpp
         src/PerlinNoise.h
         src/ThreadPool.h
         src/Player.h
+        src/AABB.h
+        src/Collisions.h
 )
 
 

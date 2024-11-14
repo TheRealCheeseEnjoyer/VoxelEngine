@@ -15,34 +15,61 @@
 #define SCR_WIDTH 1280
 #define SCR_HEIGHT 720
 
-bool debuggerIsAttached() {
-    char buf[4096];
 
-    const int status_fd = open("/proc/self/status", O_RDONLY);
-    if (status_fd == -1)
-        return false;
+bool debuggerIsAttached();
 
-    const ssize_t num_read = read(status_fd, buf, sizeof(buf) - 1);
-    close(status_fd);
+GLFWwindow* init();
 
-    if (num_read <= 0)
-        return false;
+int main() {
+    GLFWwindow* window = init();
+    ThreadPool::Start();
 
-    buf[num_read] = '\0';
-    constexpr char tracerPidString[] = "TracerPid:";
-    const auto tracer_pid_ptr = strstr(buf, tracerPidString);
-    if (!tracer_pid_ptr)
-        return false;
+    Player player;
+    Camera* playerCamera = player.getCamera();
+    World* world = new World(*playerCamera);
 
-    for (const char* characterPtr = tracer_pid_ptr + sizeof(tracerPidString) - 1;
-         characterPtr <= buf + num_read; ++characterPtr) {
-        if (isspace(*characterPtr))
-            continue;
-        else
-            return isdigit(*characterPtr) != 0 && *characterPtr != '0';
+
+    InputManager::registerKey(GLFW_KEY_W);
+    InputManager::registerKey(GLFW_KEY_A);
+    InputManager::registerKey(GLFW_KEY_S);
+    InputManager::registerKey(GLFW_KEY_D);
+    InputManager::registerKey(GLFW_KEY_SPACE);
+    InputManager::registerKey(GLFW_KEY_ESCAPE);
+    InputManager::registerButton(GLFW_MOUSE_BUTTON_LEFT);
+    InputManager::registerButton(GLFW_MOUSE_BUTTON_RIGHT);
+    InputManager::registerButton(GLFW_MOUSE_BUTTON_MIDDLE);
+
+    // Time between current frame and last frame
+    float lastFrame = 0.0f; // Time of last frame
+    while (!glfwWindowShouldClose(window)) {
+        InputManager::updateInput(window);
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        auto currentFrame = (float) glfwGetTime();
+        float deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        player.Update(deltaTime);
+
+        if (InputManager::getKeyDown(GLFW_KEY_ESCAPE))
+            glfwSetWindowShouldClose(window, true);
+
+        world->updateLoadedChunks(*playerCamera);
+        world->draw(*playerCamera);
+
+        glfwPollEvents();
+        InputManager::resetInput();
+        glfwSwapBuffers(window);
+        glFinish();
+        //std::cout << "FPS: " << 1 / (glfwGetTime() - currentFrame) << std::endl;
     }
 
-    return false;
+    delete world;
+    glfwDestroyWindow(window);
+    glfwTerminate();
+
+    ThreadPool::Stop();
+    return 0;
 }
 
 GLFWwindow* init() {
@@ -79,54 +106,32 @@ GLFWwindow* init() {
     return window;
 }
 
-int main() {
-    GLFWwindow* window = init();
-    ThreadPool::Start();
+bool debuggerIsAttached() {
+    char buf[4096];
 
-    //Camera camera({1600, 5, 1600}, {0, 1, 0}, -135, 0);
-    Player player;
-    Camera* playerCamera = player.getCamera();
-    World* world = new World(*playerCamera);
+    const int status_fd = open("/proc/self/status", O_RDONLY);
+    if (status_fd == -1)
+        return false;
 
+    const ssize_t num_read = read(status_fd, buf, sizeof(buf) - 1);
+    close(status_fd);
 
-    InputManager::registerKey(GLFW_KEY_W);
-    InputManager::registerKey(GLFW_KEY_A);
-    InputManager::registerKey(GLFW_KEY_S);
-    InputManager::registerKey(GLFW_KEY_D);
-    InputManager::registerKey(GLFW_KEY_ESCAPE);
-    InputManager::registerButton(GLFW_MOUSE_BUTTON_LEFT);
-    InputManager::registerButton(GLFW_MOUSE_BUTTON_RIGHT);
-    InputManager::registerButton(GLFW_MOUSE_BUTTON_MIDDLE);
+    if (num_read <= 0)
+        return false;
 
-    float deltaTime;    // Time between current frame and last frame
-    float lastFrame = 0.0f; // Time of last frame
-    while (!glfwWindowShouldClose(window)) {
-        InputManager::updateInput(window);
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        auto currentFrame = (float) glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+    buf[num_read] = '\0';
+    constexpr char tracerPidString[] = "TracerPid:";
+    const auto tracer_pid_ptr = strstr(buf, tracerPidString);
+    if (!tracer_pid_ptr)
+        return false;
 
-        player.Update(deltaTime);
+    for (const char* characterPtr = tracer_pid_ptr + sizeof(tracerPidString) - 1;
+         characterPtr <= buf + num_read; ++characterPtr) {
+        if (isspace(*characterPtr))
+            continue;
+        else
+            return isdigit(*characterPtr) != 0 && *characterPtr != '0';
+         }
 
-        if (InputManager::getKeyDown(GLFW_KEY_ESCAPE))
-            glfwSetWindowShouldClose(window, true);
-
-        world->updateLoadedChunks(*playerCamera);
-        world->draw(*playerCamera);
-
-        glfwPollEvents();
-        InputManager::resetInput();
-        glfwSwapBuffers(window);
-        glFinish();
-        std::cout << "FPS: " << 1 / (glfwGetTime() - currentFrame) << std::endl;
-    }
-
-    delete world;
-    glfwDestroyWindow(window);
-    glfwTerminate();
-
-    ThreadPool::Stop();
-    return 0;
+    return false;
 }
