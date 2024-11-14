@@ -1,20 +1,19 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include "src/stb_image.h"
-#include "src/InputManager.h"
-#include "src/World.h"
-#include "src/Camera.h"
+#include "include/stb_image.h"
+#include "include/InputManager.h"
+#include "include/World.h"
+#include "include/Camera.h"
 #include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
 #include <cctype>
 
-#include "src/Player.h"
+#include "include/Player.h"
 
 #define SCR_WIDTH 1280
 #define SCR_HEIGHT 720
-
 
 bool debuggerIsAttached();
 
@@ -25,9 +24,8 @@ int main() {
     ThreadPool::Start();
 
     Player player;
-    Camera* playerCamera = player.getCamera();
-    World* world = new World(*playerCamera);
-
+    const Camera* playerCamera = player.getCamera();
+    World world(*playerCamera);
 
     InputManager::registerKey(GLFW_KEY_W);
     InputManager::registerKey(GLFW_KEY_A);
@@ -39,7 +37,6 @@ int main() {
     InputManager::registerButton(GLFW_MOUSE_BUTTON_RIGHT);
     InputManager::registerButton(GLFW_MOUSE_BUTTON_MIDDLE);
 
-    // Time between current frame and last frame
     float lastFrame = 0.0f; // Time of last frame
     while (!glfwWindowShouldClose(window)) {
         InputManager::updateInput(window);
@@ -54,8 +51,8 @@ int main() {
         if (InputManager::getKeyDown(GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, true);
 
-        world->updateLoadedChunks(*playerCamera);
-        world->draw(*playerCamera);
+        world.updateLoadedChunks(*playerCamera);
+        world.draw(*playerCamera);
 
         glfwPollEvents();
         InputManager::resetInput();
@@ -64,7 +61,6 @@ int main() {
         //std::cout << "FPS: " << 1 / (glfwGetTime() - currentFrame) << std::endl;
     }
 
-    delete world;
     glfwDestroyWindow(window);
     glfwTerminate();
 

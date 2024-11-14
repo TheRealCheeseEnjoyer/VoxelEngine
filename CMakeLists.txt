@@ -14,21 +14,29 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 add_executable(VoxelEngine main.cpp
         src/glad.c
         main.cpp
-        src/Shader.h
-        src/InputManager.h
+        include/Shader.h
+        include/InputManager.h
         src/stb_image.cpp
-        src/stb_image.h
-        src/Voxel.h
-        src/World.h
-        src/Chunk.h
-        src/TextureManager.h
-        src/Camera.h
-        src/PerlinNoise.h
-        src/PerlinNoise.h
-        src/ThreadPool.h
-        src/Player.h
-        src/AABB.h
-        src/Collisions.h
+        include/stb_image.h
+        include/Voxel.h
+        include/World.h
+        include/Chunk.h
+        include/TextureManager.h
+        include/Camera.h
+        include/PerlinNoise.h
+        include/PerlinNoise.h
+        include/ThreadPool.h
+        include/Player.h
+        include/AABB.h
+        include/Collisions.h
+        src/Camera.cpp
+        src/Chunk.cpp
+        src/Collisions.cpp
+        src/Player.cpp
+        src/Shader.cpp
+        src/TextureManager.cpp
+        src/ThreadPool.cpp
+        src/World.cpp
 )
 
 
