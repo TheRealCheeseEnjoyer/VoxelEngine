@@ -24,8 +24,8 @@ World::World(const Camera &camera) {
 
     ThreadPool::waitForAllJobs();
 
-    for (int i = 0; i < chunks.size(); i++) {
-        chunks[i].createMesh();
+    for (auto& chunk : chunks) {
+        chunk.createMesh();
     }
 
     /*for (int x = xStart; x < xEnd; x++) {
@@ -39,8 +39,8 @@ World::World(const Camera &camera) {
 
     ThreadPool::waitForAllJobs();
 
-    for (int i = 0; i < chunks.size(); i++) {
-        chunks[i].loadMesh();
+    for (auto& chunk : chunks) {
+        chunk.loadMesh();
     }
 
     /*for (int x = xStart; x < xEnd; x++) {
