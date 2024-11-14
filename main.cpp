@@ -11,6 +11,7 @@
 #include <cctype>
 
 #include "include/Player.h"
+#include "src/Skybox.h"
 
 #define SCR_WIDTH 1280
 #define SCR_HEIGHT 720
@@ -24,6 +25,7 @@ int main() {
     ThreadPool::Start();
 
     Player player;
+    Skybox skybox;
     const Camera* playerCamera = player.getCamera();
     World world(*playerCamera);
 
@@ -53,6 +55,7 @@ int main() {
 
         world.updateLoadedChunks(*playerCamera);
         world.draw(*playerCamera);
+        skybox.draw(*playerCamera);
 
         glfwPollEvents();
         InputManager::resetInput();

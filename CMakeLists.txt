@@ -37,6 +37,8 @@ add_executable(VoxelEngine main.cpp
         src/TextureManager.cpp
         src/ThreadPool.cpp
         src/World.cpp
+        src/Skybox.cpp
+        src/Skybox.h
 )
 
 
