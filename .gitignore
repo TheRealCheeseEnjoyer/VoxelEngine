@@ -32,3 +32,5 @@
 *.app
 
 vgcore*
+cmake-*
+.idea
